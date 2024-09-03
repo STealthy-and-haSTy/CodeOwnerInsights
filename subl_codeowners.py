@@ -54,7 +54,8 @@ def update_code_owner_in_status_bar(view: sublime.View) -> None:
 def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecification]:
     # TODO: this should be relative to git root, which may not be ST project root...
     # `git rev-parse --show-toplevel` returns full path to folder containing .git folder (could be submodule)
-    if not view.file_name():
+    file_name = view.file_name()
+    if not file_name:
         return None
 
     window = view.window()
@@ -62,6 +63,11 @@ def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecificati
         return None
 
     for folder_path in window.folders():
+        if not file_name.startswith(folder_path + '/'):
+            # file is not under the given folder, so codeowners from the folder don't apply
+            # we added a slash in the check above to avoid false positives like a file called `foobar/test` from being matched against a top level folder called `foo`
+            continue
+
         # check cache first
         if window.id() not in codeowner_window_cache.keys():
             codeowner_window_cache[window.id()] = dict()
@@ -78,7 +84,7 @@ def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecificati
                 sublime.set_timeout_async(clear_cache, 1000 * 60 * 60) # 60 minutes
 
         if codeowners:
-            relevant_codeowner_specification = get_resolved_code_owners_for_file(codeowners, Path(view.file_name()))
+            relevant_codeowner_specification = get_resolved_code_owners_for_file(codeowners, Path(file_name))
             if relevant_codeowner_specification:
                 return relevant_codeowner_specification
 
