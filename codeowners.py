@@ -13,6 +13,7 @@ class CodeOwnerSpecification:
     glob_pattern: str
     owners: list #[str]
     line_number: int
+    codeowners_file_path: Path
 
     def does_match(self, path: Path) -> bool:
         patterns_to_try = list()
@@ -25,7 +26,7 @@ class CodeOwnerSpecification:
         return any((path.match(pattern) for pattern in patterns_to_try))
 
 
-def parse_code_owners(codeowners_content: str) -> Iterable[CodeOwnerSpecification]:
+def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> Iterable[CodeOwnerSpecification]:
     last_comment = None
     line_number = 0
     for line in codeowners_content.splitlines():
@@ -40,7 +41,7 @@ def parse_code_owners(codeowners_content: str) -> Iterable[CodeOwnerSpecificatio
         
         # assume no spaces in file path glob for now
         glob_pattern, owners = line.split(' ', maxsplit=1)
-        yield CodeOwnerSpecification(last_comment, glob_pattern, owners.split(), line_number)
+        yield CodeOwnerSpecification(last_comment, glob_pattern, owners.split(), line_number, codeowners_file_path)
 
 
 def get_matching_code_owner_specifications_for_file(codeowners: Iterable[CodeOwnerSpecification], path: Path) -> Iterable[CodeOwnerSpecification]:
