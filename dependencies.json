@@ -1,0 +1,13 @@
+{
+    "*": {
+        "<4000": [
+            "pathlib",
+            "wcmatch",
+            "bracex"
+        ],
+        ">=4000": [
+            "wcmatch",
+            "bracex"
+        ]
+    }
+}

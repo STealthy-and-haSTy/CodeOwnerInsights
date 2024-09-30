@@ -2,7 +2,7 @@ from collections import deque
 from pathlib import Path
 from typing import Iterable, Optional, Union
 from dataclasses import dataclass
-
+from wcmatch.glob import globmatch, GLOBSTAR
 
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
@@ -23,7 +23,7 @@ class CodeOwnerSpecification:
             patterns_to_try.append(self.glob_pattern)
             patterns_to_try.append(self.glob_pattern + '.*') # extension if unspecified is irrelevant, base name is matched
 
-        return any((path.match(pattern) for pattern in patterns_to_try))
+        return globmatch(filename=str(path), patterns=patterns_to_try, flags=GLOBSTAR)
 
 
 def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> Iterable[CodeOwnerSpecification]:

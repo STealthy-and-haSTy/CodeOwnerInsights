@@ -102,7 +102,7 @@ def get_code_owner(window: sublime.Window, folder_path: str, file_name: str) -> 
             sublime.set_timeout_async(clear_cache, 1000 * 60 * 60) # 60 minutes
 
     if codeowners:
-        relevant_codeowner_specification = get_resolved_code_owners_for_file(codeowners, Path(file_name))
+        relevant_codeowner_specification = get_resolved_code_owners_for_file(codeowners, Path(os.path.relpath(file_name, folder_path)))
         if relevant_codeowner_specification:
             return relevant_codeowner_specification
 
