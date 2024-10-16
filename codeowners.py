@@ -44,19 +44,23 @@ class CodeOwnerSpecification:
 def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> Iterable[CodeOwnerSpecification]:
     last_comment = None
     line_number = 0
+    prev_line_was_a_rule = False
     for line in codeowners_content.splitlines():
         line_number += 1
         if line.startswith('#'):
-            if last_comment is None:
+            if last_comment is None or prev_line_was_a_rule:
                 last_comment = line
             else:
                 last_comment += '\n' + line
+            prev_line_was_a_rule = False
             continue
 
         if line.strip() == '':
             last_comment = None
+            prev_line_was_a_rule = False
             continue
         
+        prev_line_was_a_rule = True
         inline_comment_pos = line.find('#')
         if inline_comment_pos > -1:
             line = line[0:inline_comment_pos]

@@ -74,6 +74,12 @@ codeowners_content = dedent("""\
     # subdirectory, as this subdirectory has its own owner @doctocat
     #/apps/ @octocat
     /apps/github2 @doctocat
+
+    # test
+    z @z
+    # another test with no blank lines between these
+    # comments and the prev rule
+    x @y
 """)
 codeowners = list(parse_code_owners(fake_path, codeowners_content))
 
@@ -179,6 +185,27 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
                 '*',
                 ['@global-owner1', '@global-owner2'],
                 8, # NOT line 35
+                fake_path,
+            ),
+        ),
+        (
+            'z',
+            CodeOwnerSpecification(
+                '# test',
+                'z',
+                ['@z'],
+                70,
+                fake_path,
+            ),
+        ),
+        (
+            'x',
+            CodeOwnerSpecification(
+                '# another test with no blank lines between these\n' +
+                '# comments and the prev rule',
+                'x',
+                ['@y'],
+                73,
                 fake_path,
             ),
         ),
