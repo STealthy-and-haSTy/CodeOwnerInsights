@@ -6,6 +6,28 @@ from wcmatch.glob import globmatch, GLOBSTAR
 
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
+def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
+    patterns_to_try = list()
+    if glob_pattern.endswith('/'):
+        patterns_to_try.append(glob_pattern + '**')
+    elif glob_pattern == '*':
+        return True
+    elif glob_pattern.startswith('*.') and '/' not in glob_pattern:
+        patterns_to_try.append('**/' + glob_pattern)
+    else:
+        patterns_to_try.append(glob_pattern)
+        if not glob_pattern.endswith('/*'):
+            if '/' in glob_pattern:
+                patterns_to_try.append(glob_pattern + '/*')
+            else:
+                patterns_to_try.append(glob_pattern + '/**')
+        if not glob_pattern.startswith('/'):
+            for pattern in list(patterns_to_try):
+                patterns_to_try.append('**/' + pattern)
+                
+
+    return globmatch(filename=str(path), patterns=patterns_to_try, flags=GLOBSTAR)
+
 @dataclass
 class CodeOwnerSpecification:
     """Data class for showing the code owner specification parsed from a line in a CODEOWNERS file."""
@@ -16,14 +38,7 @@ class CodeOwnerSpecification:
     codeowners_file_path: Path
 
     def does_match(self, path: Path) -> bool:
-        patterns_to_try = list()
-        if self.glob_pattern.endswith('/'):
-            patterns_to_try.append(self.glob_pattern + '**')
-        else:
-            patterns_to_try.append(self.glob_pattern)
-            patterns_to_try.append(self.glob_pattern + '.*') # extension if unspecified is irrelevant, base name is matched
-
-        return globmatch(filename=str(path), patterns=patterns_to_try, flags=GLOBSTAR)
+        return does_codeowner_glob_match(self.glob_pattern, path)
 
 
 def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> Iterable[CodeOwnerSpecification]:
@@ -32,16 +47,29 @@ def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> It
     for line in codeowners_content.splitlines():
         line_number += 1
         if line.startswith('#'):
-            last_comment = line
+            if last_comment is None:
+                last_comment = line
+            else:
+                last_comment += '\n' + line
             continue
 
         if line.strip() == '':
             last_comment = None
             continue
         
+        inline_comment_pos = line.find('#')
+        if inline_comment_pos > -1:
+            line = line[0:inline_comment_pos]
         # assume no spaces in file path glob for now
-        glob_pattern, owners = line.split(' ', maxsplit=1)
-        yield CodeOwnerSpecification(last_comment, glob_pattern, owners.split(), line_number, codeowners_file_path)
+        space_pos = line.find(' ')
+        if space_pos == -1:
+            glob_pattern = line
+            owners = []
+        else:
+            glob_pattern = line[0:space_pos]
+            owners = line[space_pos:].lstrip().split()
+        
+        yield CodeOwnerSpecification(last_comment, glob_pattern, owners, line_number, codeowners_file_path)
 
 
 def get_matching_code_owner_specifications_for_file(codeowners: Iterable[CodeOwnerSpecification], path: Path) -> Iterable[CodeOwnerSpecification]:
@@ -71,34 +99,3 @@ def get_code_owners_file(repo_root: Path) -> Optional[Path]:
             return path
 
     return None
-
-
-def test_parsing() -> bool:
-    from textwrap import dedent
-
-    codeowners_content = dedent("""\
-        # Code
-        * @org/some-team
-
-        # tracking database migrations
-        source/migrations/ @org/db-admins
-
-        # infrastructure related
-        terraform/ @org/infra
-        **/Dockerfile @org/infra
-    """)
-    codeowners = list(parse_code_owners(codeowners_content))
-
-    owner = get_resolved_code_owners_for_file(codeowners, Path('source/migrations/20240831-223245-some_file.sql'))
-    print(owner)
-    expected_owner = CodeOwnerSpecification(
-        '# tracking database migrations',
-        'source/migrations/',
-        ['@org/db-admins'],
-        5
-    )
-
-    test_succeeds = owner == expected_owner
-    print(test_succeeds)
-    assert test_succeeds # assertions are ignored in ST unfortunately
-    return test_succeeds

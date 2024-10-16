@@ -4,5 +4,6 @@
   },
   { "caption": "CodeOwnerInsights: Show Code Owners for git changes compared to default branch",
     "command": "show_code_owners_for_git_default_branch_diff",
+    "args": { "include_unowned": true, },
   },
 ]

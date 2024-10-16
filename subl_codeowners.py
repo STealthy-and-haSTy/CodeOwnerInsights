@@ -47,11 +47,11 @@ class CodeOwnerListener(sublime_plugin.EventListener):
 
 def update_code_owner_in_status_bar(view: sublime.View) -> None:
     codeowner = get_code_owner_for_view(view)
-    if not codeowner:
+    if not codeowner or not codeowner.owners:
         view.erase_status(STATUS_BAR_KEY)
     else:
         # TODO: have this f-string be configurable in settings
-        nearest_comment = codeowner.nearest_comment[1:].strip() if codeowner.nearest_comment else ''
+        nearest_comment = codeowner.nearest_comment[1:].replace('\n#', '').strip() if codeowner.nearest_comment else ''
         view.set_status(STATUS_BAR_KEY, f'Code Owner: {nearest_comment} - {", ".join(codeowner.owners)}')
 
 
@@ -97,7 +97,8 @@ def get_code_owner(window: sublime.Window, folder_path: str, file_name: str) -> 
             codeowner_window_cache[window.id()][folder_path] = codeowners
             def clear_cache() -> None:
                 if window.id() in codeowner_window_cache:
-                    del codeowner_window_cache[window.id()][folder_path]
+                    if folder_path in codeowner_window_cache[window.id()]:
+                        del codeowner_window_cache[window.id()][folder_path]
             # TODO: clear cache early when codeowners is saved/reverted or if file time differs from cached i.e. changing branches? or offer entry in command palette for it
             sublime.set_timeout_async(clear_cache, 1000 * 60 * 60) # 60 minutes
 
@@ -142,7 +143,10 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # TODO: group by owner singular?
         owner_tree = {}
         for file, codeowner_spec in result:
-            owners = ', '.join(codeowner_spec.owners)
+            if codeowner_spec and codeowner_spec.owners:
+                owners = ', '.join(codeowner_spec.owners)
+            else:
+                owners = '*UNOWNED*'
             if owners not in owner_tree:
                 owner_tree[owners] = []
             owner_tree[owners].append(str(file))

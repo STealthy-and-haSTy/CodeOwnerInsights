@@ -11,10 +11,13 @@ There is experimental support for showing all `git` changed files compared to th
 
 ## Development
 
-To run the parser tests, in the ST console:
+To run the parser tests, in a terminal emulator:
 
-```python
-from CodeOwnerInsights.codeowners import test_parsing
-test_parsing()
+```sh
+python3.12 -m venv ./.venv
+source .venv/bin/activate
+pip install poetry
+poetry install --no-root
+poetry run python3 -- -m pytest
 ```
 Ideally we will get these tests running in CI also.
