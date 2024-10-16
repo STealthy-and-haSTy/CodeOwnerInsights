@@ -18,6 +18,7 @@ python3.12 -m venv ./.venv
 source .venv/bin/activate
 pip install poetry
 poetry install --no-root
-poetry run python3 -- -m pytest
+deactivate # to avoid problems later
+.venv/bin/poetry run python3 -- -m pytest
 ```
 Ideally we will get these tests running in CI also.
