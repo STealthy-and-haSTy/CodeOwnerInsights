@@ -28,7 +28,8 @@ class CodeOwnerListener(sublime_plugin.EventListener):
     def on_load_async(self, view: sublime.View): # TODO: EventListener.on_load_async doesn't seem to be called when previewing via Goto Anything if file not already open
         update_code_owner_in_status_bar(view)
 
-    def on_save_async(self, view: sublime.View):
+    def on_post_save_async(self, view: sublime.View):
+        clear_cache_when_codeowner_file_saved(view)
         update_code_owner_in_status_bar(view)
 
     def on_post_move_async(self, view: sublime.View):
@@ -45,6 +46,19 @@ class CodeOwnerListener(sublime_plugin.EventListener):
         pass # TODO: cache codeowners files
 
 
+def clear_cache_when_codeowner_file_saved(view: sublime.View) -> None:
+    saved_file_path = get_file_path_of_view(view)
+    relevant_project_folders = get_project_folders_for_view(view)
+    if not relevant_project_folders:
+        return
+
+    for project_folder in relevant_project_folders:
+        code_owners_path = get_code_owners_file(project_folder)
+        if code_owners_path == saved_file_path:
+            print(f'CodeOwnerInsights: {saved_file_path} has been updated, clearing codeowner cache')
+            codeowner_window_cache[view.window().id()] = dict()
+            return
+
 def update_code_owner_in_status_bar(view: sublime.View) -> None:
     codeowner = get_code_owner_for_view(view)
     if not codeowner or not codeowner.owners:
@@ -56,32 +70,48 @@ def update_code_owner_in_status_bar(view: sublime.View) -> None:
 
 
 def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecification]:
-    file_name = view.file_name()
-    if not file_name:
+    relevant_project_folders = get_project_folders_for_view(view)
+    if not relevant_project_folders:
         return None
 
-    window = view.window()
-    if not window:
-        return None
-
-    for folder_path in get_project_folders_for_file(file_name, window):
-        codeowner = get_code_owner(window, folder_path, file_name)
+    for folder_path in relevant_project_folders:
+        codeowner = get_code_owner(view.window(), folder_path, view.file_name())
         if codeowner:
             return codeowner
 
     return None
 
 
-def get_project_folders_for_file(file_name: Path, window: sublime.Window) -> Iterable[Path]:
+def get_file_path_of_view(view: sublime.View) -> Optional[Path]:
+    file_name = view.file_name()
+    if not file_name:
+        return None
+
+    return Path(file_name)
+
+
+def get_project_folders_for_view(view: sublime.View) -> Optional[Iterable[Path]]:
+    file_path = get_file_path_of_view(view)
+
+    window = view.window()
+    if not window or not file_path:
+        return None
+
+    return get_project_folders_for_file(file_path, window)
+
+
+def get_project_folders_for_file(file_path: Path, window: sublime.Window) -> Iterable[Path]:
     # TODO: this should be relative to git root, which may not be ST project root...
     # `git rev-parse --show-toplevel` returns full path to folder containing .git folder (could be submodule)
-    for folder_path in window.folders():
-        if not file_name.startswith(folder_path + '/'):
+    for folder_path in (Path(folder) for folder in window.folders()):
+        try:
+            relative = file_path.relative_to(folder_path)
+        except ValueError:
             # file is not under the given folder, so codeowners from the folder don't apply
-            # we added a slash in the check above to avoid false positives like a file called `foobar/test` from being matched against a top level folder called `foo`
+            # because we are using pathlib, we avoid false positives like a file called `foobar/test` from being matched against a top level folder called `foo`
             continue
 
-        yield Path(folder_path)
+        yield folder_path
 
 
 def get_code_owner(window: sublime.Window, folder_path: str, file_name: str) -> Optional[CodeOwnerSpecification]:
