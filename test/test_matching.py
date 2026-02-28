@@ -1,7 +1,5 @@
-from textwrap import dedent
 import pytest
 from pathlib import Path
-from typing import Optional
 from codeowners import does_codeowner_glob_match
 
 @pytest.mark.parametrize(

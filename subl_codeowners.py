@@ -7,7 +7,7 @@ from pathlib import Path
 import os
 import html
 
-from .codeowners import CodeOwnerSpecification, get_code_owners_file, parse_code_owners, get_resolved_code_owners_for_file
+from .codeowners import CodeOwnerSpecification, get_code_owners_file, parse_code_owners, get_resolved_code_owners_for_file, is_path_relative_to
 from .git import get_git_changed_files_compared_to_default_branch
 
 
@@ -104,12 +104,10 @@ def get_project_folders_for_view(view: sublime.View) -> Optional[Iterable[Path]]
 def get_project_folders_for_file(file_path: Path, window: sublime.Window) -> Iterable[Path]:
     # TODO: this should be relative to git root, which may not be ST project root...
     # `git rev-parse --show-toplevel` returns full path to folder containing .git folder (could be submodule)
-    for folder_path in (Path(folder) for folder in window.folders()):
-        try:
-            relative = file_path.relative_to(folder_path)
-        except ValueError:
+    for folder in window.folders():
+        folder_path = Path(folder)
+        if not is_path_relative_to(file_path, folder_path):
             # file is not under the given folder, so codeowners from the folder don't apply
-            # because we are using pathlib, we avoid false positives like a file called `foobar/test` from being matched against a top level folder called `foo`
             continue
 
         yield folder_path

@@ -103,3 +103,11 @@ def get_code_owners_file(repo_root: Path) -> Optional[Path]:
             return path
 
     return None
+
+
+def is_path_relative_to(path: Path, possible_ancestor_folder: Path) -> bool:
+    try:
+        path.relative_to(possible_ancestor_folder)
+        return True
+    except ValueError:
+        return False
