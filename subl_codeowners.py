@@ -1,11 +1,10 @@
 import sublime
 import sublime_plugin
-
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional, List, Tuple
 from pathlib import Path
-#from wcmatch.pathlib import Path
 import os
 import html
+from dataclasses import dataclass
 
 from .codeowners import CodeOwnerSpecification, get_code_owners_file, parse_code_owners, get_resolved_code_owners_for_file, is_path_relative_to
 from .git import get_git_changed_files_compared_to_default_branch
@@ -23,6 +22,27 @@ def clear_status_bar_for_all_open_windows():
     for window in sublime.windows():
         for view in window.views():
             view.erase_status(STATUS_BAR_KEY)
+
+
+@dataclass
+class CodeOwnerCacheEntry:
+    specifications: List[CodeOwnerSpecification]
+    modification_time: float
+    
+    def is_valid(self, codeowners_file: Path) -> bool:
+        return codeowners_file.exists() and self.modification_time == codeowners_file.stat().st_mtime
+
+
+def get_code_owner_cache_entry(window: sublime.Window, folder_path: Path) -> Optional[CodeOwnerCacheEntry]:
+    if window.id() not in codeowner_window_cache.keys():
+        codeowner_window_cache[window.id()] = dict()
+    return codeowner_window_cache[window.id()].get(folder_path, None)
+
+
+def set_code_owner_cache_entry(window: sublime.Window, folder_path: Path, entry: CodeOwnerCacheEntry) -> None:
+    if window.id() not in codeowner_window_cache.keys():
+        codeowner_window_cache[window.id()] = dict()
+    codeowner_window_cache[window.id()][folder_path] = entry
 
 
 class CodeOwnerListener(sublime_plugin.EventListener):
@@ -59,6 +79,7 @@ def clear_cache_when_codeowner_file_saved(view: sublime.View) -> None:
             print(f'CodeOwnerInsights: {saved_file_path} has been updated, clearing codeowner cache')
             codeowner_window_cache[view.window().id()] = dict()
             return
+
 
 def update_code_owner_in_status_bar(view: sublime.View) -> None:
     codeowner = get_code_owner_for_view(view)
@@ -113,28 +134,33 @@ def get_project_folders_for_file(file_path: Path, window: sublime.Window) -> Ite
         yield folder_path
 
 
-def get_code_owner(window: sublime.Window, folder_path: str, file_name: str) -> Optional[CodeOwnerSpecification]:
-    # check cache first
-    if window.id() not in codeowner_window_cache.keys():
-        codeowner_window_cache[window.id()] = dict()
-    codeowners = codeowner_window_cache[window.id()].get(folder_path, None)
-    if not codeowners:
-        codeowners_file = get_code_owners_file(Path(folder_path))
-        if codeowners_file:
-            codeowners = list(parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8')))
+def get_code_owner(window: sublime.Window, folder_path: Path, file_name: Path) -> Optional[CodeOwnerSpecification]:
+    specifications = get_code_owner_specifications_for_folder(window, folder_path)
 
-            codeowner_window_cache[window.id()][folder_path] = codeowners
-            def clear_cache() -> None:
-                if window.id() in codeowner_window_cache:
-                    if folder_path in codeowner_window_cache[window.id()]:
-                        del codeowner_window_cache[window.id()][folder_path]
-            # TODO: clear cache early when codeowners is saved/reverted or if file time differs from cached i.e. changing branches? or offer entry in command palette for it
-            sublime.set_timeout_async(clear_cache, 1000 * 60 * 60) # 60 minutes
-
-    if codeowners:
-        relevant_codeowner_specification = get_resolved_code_owners_for_file(codeowners, Path(os.path.relpath(file_name, folder_path)))
+    if specifications:
+        relevant_codeowner_specification = get_resolved_code_owners_for_file(specifications, Path(os.path.relpath(file_name, folder_path)))
         if relevant_codeowner_specification:
             return relevant_codeowner_specification
+
+    return None
+
+
+def get_code_owner_specifications_for_folder(window: sublime.Window, folder_path: Path) -> Optional[Iterable[CodeOwnerSpecification]]:
+    # check cache first
+    cache_entry = get_code_owner_cache_entry(window, folder_path)
+    if cache_entry:
+        codeowners_file = get_code_owners_file(folder_path)
+        if codeowners_file and cache_entry.is_valid(codeowners_file):
+            return cache_entry.specifications
+
+    # if not in cache or cache is invalid, parse the file
+    codeowners_file = get_code_owners_file(folder_path)
+    if codeowners_file:
+        modification_time = codeowners_file.stat().st_mtime
+        specifications = list(parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8')))
+        
+        set_code_owner_cache_entry(window, folder_path, CodeOwnerCacheEntry(specifications, modification_time))
+        return specifications
 
     return None
 
