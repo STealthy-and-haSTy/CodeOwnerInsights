@@ -186,15 +186,35 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         popup_content = ''
         for owners in owner_tree.keys():
             popup_content += f'<h2>{html.escape(owners)}</h2>\n<ul>\n'
-            command_url = sublime.command_url('open', {'file': str(folder / file)})
+
             for file in owner_tree[owners]:
-                popup_content += f'<li><a href="{command_url}">{html.escape(file)}</a></li>\n' # TODO: show comment by file or subgroup by comment then file
+                command_url = sublime.html_format_command('open_file', {'file': str(folder / file)})
+                # TODO: show comment by file or subgroup by comment then file
+                popup_content += f'<li><a href="{command_url}">{html.escape(file)}</a></li>\n'
             popup_content += '</ul>\n'
 
-        self.view.show_popup(content=popup_content, location=self.view.sel()[0].a, on_navigate=lambda to: print(to), max_width=540, max_height=320)
+        self.view.show_popup(
+            content=popup_content,
+            location=self.view.sel()[0].a,
+            on_navigate=self.navigate,
+            max_width=540,
+            max_height=320)
 
     def is_enabled(self) -> bool:
         window_id = self.view.window().id()
         if window_id in codeowner_window_cache and codeowner_window_cache[window_id]:
             return True
         return False
+
+    def navigate(self, link: str) -> None:
+        if link.startswith('subl:'):
+            link = link[len('subl:'):]
+
+        if open_angle_pos := link.find('{'):
+            command_args = sublime.decode_value(link[open_angle_pos:])
+            command_name = link[0:open_angle_pos].strip()
+        else:
+            command_args = dict()
+            command_name = link.strip()
+        
+        self.view.window().run_command(command_name, command_args)
