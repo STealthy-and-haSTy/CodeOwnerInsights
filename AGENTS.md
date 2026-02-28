@@ -22,10 +22,6 @@ poetry install --no-root
 
 # Run tests
 .venv/bin/poetry run python3 -m pytest
-
-# Create virtual environment (if needed)
-python3.12 -m venv ./.venv
-source .venv/bin/activate
 ```
 
 ## Testing

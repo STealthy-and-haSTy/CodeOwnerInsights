@@ -7,7 +7,7 @@ Includes a command pallete entry to open the `CODEOWNERS` file at the relevant l
 This project is still in it's early stages, but works well. It was written for my personal use, but any bugs reported will be fixed. Feature requests will be considered, bonus points if you raise a Pull Request.
 There is currently no support for configuration, but it is planned to allow to customize what gets shown in the status bar.
 
-There is experimental support for showing all `git` changed files compared to the default branch, grouped by code owner. You will find it in the command palette. Currently very ugly but gets the job done 
+There is experimental support for showing all `git` changed files compared to the default branch, grouped by code owner. You will find it in the command palette. Currently very ugly but gets the job done.
 
 ## Development
 
