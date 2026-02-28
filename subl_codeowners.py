@@ -5,6 +5,7 @@ from typing import Iterable, Optional, Tuple
 from pathlib import Path
 #from wcmatch.pathlib import Path
 import os
+import html
 
 from .codeowners import CodeOwnerSpecification, get_code_owners_file, parse_code_owners, get_resolved_code_owners_for_file
 from .git import get_git_changed_files_compared_to_default_branch
@@ -140,11 +141,11 @@ def get_code_owner(window: sublime.Window, folder_path: str, file_name: str) -> 
     return None
 
 
-def get_git_change_owners_for_folder(window: sublime.Window, folder_path: Path, include_unowned: bool) -> Iterable[Tuple[Path, Optional[CodeOwnerSpecification]]]:
+def get_git_change_owners_for_folder(window: sublime.Window, folder_path: Path, include_unowned: bool) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
     for file_path in get_git_changed_files_compared_to_default_branch(folder_path):
         owner = get_code_owner(window, folder_path, file_path)
         if owner or include_unowned:
-            yield (file_path, owner)
+            yield (folder_path, file_path, owner)
 
 
 def get_git_change_owners(window: sublime.Window, include_unowned: bool) -> Iterable[Tuple[Path, Optional[CodeOwnerSpecification]]]:
@@ -172,7 +173,7 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # group by owners
         # TODO: group by owner singular?
         owner_tree = {}
-        for file, codeowner_spec in result:
+        for folder, file, codeowner_spec in result:
             if codeowner_spec and codeowner_spec.owners:
                 owners = ', '.join(codeowner_spec.owners)
             else:
@@ -184,12 +185,13 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # format popup
         popup_content = ''
         for owners in owner_tree.keys():
-            popup_content += f'<h2>{owners}</h2>\n<ul>\n' # TODO: html escape
+            popup_content += f'<h2>{html.escape(owners)}</h2>\n<ul>\n'
+            command_url = sublime.command_url('open', {'file': str(folder / file)})
             for file in owner_tree[owners]:
-                popup_content += f'<li>{file}</li>\n' # TODO: html escape # TODO: make clickable link to open codeowners file or file changed? hmm # TODO: show comment by file or subgroup by comment then file
+                popup_content += f'<li><a href="{command_url}">{html.escape(file)}</a></li>\n' # TODO: show comment by file or subgroup by comment then file
             popup_content += '</ul>\n'
 
-        self.view.show_popup(content=popup_content, location=self.view.sel()[0].a)
+        self.view.show_popup(content=popup_content, location=self.view.sel()[0].a, on_navigate=lambda to: print(to), max_width=540, max_height=320)
 
     def is_enabled(self) -> bool:
         window_id = self.view.window().id()
