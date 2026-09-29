@@ -13,6 +13,11 @@ wcmatch = "^10.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
 
+[tool.pytest.ini_options]
+# the repo root holds the modules under test, which are not installed as a package
+pythonpath = ["."]
+testpaths = ["test"]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

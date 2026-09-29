@@ -28,12 +28,11 @@ The plugin runs inside Sublime Text's Python 3.8 plugin host, and `.python-versi
 # Install dependencies (Poetry manages the virtualenv; there is no in-repo .venv)
 poetry install --no-root
 
-# Run tests - must be invoked as `python3 -m pytest`, a bare `pytest` fails
-# to import the repo's modules
-poetry run python3 -m pytest
+# Run tests
+poetry run pytest
 
 # Run a single test file
-poetry run python3 -m pytest test/test_git.py
+poetry run pytest test/test_git.py
 ```
 
 ## Formatting
@@ -42,7 +41,7 @@ There is no formatter config committed. The editor's ruff integration (0.12.x) r
 
 ## Testing
 
-Tests are in the `test/` directory and use pytest. Everything except `subl_codeowners.py` is covered, and nothing requires a running Sublime Text.
+Tests are in the `test/` directory and use pytest. Everything except `subl_codeowners.py` is covered, and nothing requires a running Sublime Text. `[tool.pytest.ini_options]` in `pyproject.toml` puts the repo root on `sys.path` and defaults `testpaths` to `test/`, since the modules under test are not installed as a package.
 
 - `test_parsing.py`, `test_matching.py`, `test_utils.py` - `codeowners.py`
 - `test_git.py` - `git.py`. Builds real temporary repositories in `tmp_path` (including a bare `origin` so `origin/HEAD` resolves) and shells out to git. No network access, and no test may mutate the process working directory
