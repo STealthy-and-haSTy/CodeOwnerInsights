@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
-import os
 import sys
 import subprocess
 from subprocess import run, PIPE
@@ -56,7 +55,6 @@ def get_current_branch(folder_path: Path) -> Optional[str]:
 def exec_command(folder_path: Path, shell_cmd: str) -> ShellExecutionSummary:
     # this shell_cmd/cmd logic was borrowed from Packages/Default/exec.py
 
-    os.chdir(str(folder_path))
     if shell_cmd:
         if sys.platform == "win32":
             # Use shell=True on Windows, so shell_cmd is passed through
@@ -68,14 +66,14 @@ def exec_command(folder_path: Path, shell_cmd: str) -> ShellExecutionSummary:
             shell = False
     else:
         shell = False
-    return execute_with_stdin(cmd, shell, '')
+    return execute_with_stdin(cmd, shell, '', folder_path)
 
 
 # returns the completed subpress and how long it took to complete as a float
-def execute_with_stdin(cmd, shell, text) -> ShellExecutionSummary:
+def execute_with_stdin(cmd, shell, text, cwd: Optional[Path] = None) -> ShellExecutionSummary:
     before = time.perf_counter()
     # https://docs.python.org/3/library/subprocess.html#subprocess.run - new in version 3.5
     # therefore, you need to be using ST build >= 4050 and the package should be opting in to Python 3.8 plugin host
-    p = run(cmd, shell=shell, capture_output=True, input=text, encoding='utf-8')
+    p = run(cmd, shell=shell, capture_output=True, input=text, encoding='utf-8', cwd=cwd)
     after = time.perf_counter()
     return ShellExecutionSummary(p, after - before)

@@ -167,7 +167,8 @@ def get_code_owner_specifications_for_folder(window: sublime.Window, folder_path
 
 def get_git_change_owners_for_folder(window: sublime.Window, folder_path: Path, include_unowned: bool) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
     for file_path in get_git_changed_files_compared_to_default_branch(folder_path):
-        owner = get_code_owner(window, folder_path, file_path)
+        # git diff --name-only reports paths relative to the folder it was run in
+        owner = get_code_owner(window, folder_path, folder_path / file_path)
         if owner or include_unowned:
             yield (folder_path, file_path, owner)
 
