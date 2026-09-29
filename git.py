@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple
 import sys
 import subprocess
 from subprocess import run, PIPE
@@ -74,7 +74,7 @@ def get_current_branch(folder_path: Path) -> Optional[str]:
     return None
 
 
-def exec_command(folder_path: Path, cmd: list[str]) -> ShellExecutionSummary:
+def exec_command(folder_path: Path, cmd: List[str]) -> ShellExecutionSummary:
     return execute_with_stdin(cmd, False, "", folder_path)
 
 
