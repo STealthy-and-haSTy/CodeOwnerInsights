@@ -133,7 +133,7 @@ def test_exec_command_does_not_change_the_process_cwd(
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     monkeypatch.chdir(elsewhere)
-    exec_command(repo, "git rev-parse --abbrev-ref HEAD")
+    exec_command(repo, ["git", "rev-parse", "--abbrev-ref", "HEAD"])
     assert Path.cwd() == elsewhere
 
 
@@ -171,7 +171,7 @@ def test_changed_files_outside_a_repo(tmp_path: Path) -> None:
 
 
 def test_exec_command_runs_in_the_given_folder(repo: Path) -> None:
-    summary = exec_command(repo, "pwd")
+    summary = exec_command(repo, ["pwd"])
     assert summary.process.returncode == 0
     assert os.path.realpath(summary.process.stdout.strip()) == os.path.realpath(
         str(repo)

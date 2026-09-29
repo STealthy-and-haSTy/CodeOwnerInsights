@@ -22,14 +22,20 @@ def get_git_changed_files_compared_to_branch(
         return []
     # find the common ancestor incase local or remote base branch is more up to date than the feature branch
     merge_base = exec_command(
-        folder_path, f"git merge-base {base_branch_name} {current_branch}"
+        folder_path, ["git", "merge-base", base_branch_name, current_branch]
     )
     if not merge_base or merge_base.process.returncode != 0:
         return []
-    files = exec_command(
-        folder_path,
-        f"git diff {merge_base.process.stdout.rstrip()} --name-only --diff-filter=ACMR {filter or ''}",
-    )
+    diff_cmd = [
+        "git",
+        "diff",
+        merge_base.process.stdout.rstrip(),
+        "--name-only",
+        "--diff-filter=ACMR",
+    ]
+    if filter:
+        diff_cmd.append(filter)
+    files = exec_command(folder_path, diff_cmd)
     if not files:
         return []
     return (
@@ -49,36 +55,27 @@ def get_git_changed_files_compared_to_default_branch(
 
 
 def get_default_branch(folder_path: Path) -> Optional[str]:
-    shell_cmd = "git rev-parse --abbrev-ref origin/HEAD | cut -d / -f 2"
-    result = exec_command(folder_path, shell_cmd)
+    result = exec_command(
+        folder_path, ["git", "rev-parse", "--abbrev-ref", "origin/HEAD"]
+    )
     if result and result.process.returncode == 0:
-        return result.process.stdout.rstrip()
+        # origin/HEAD points to something like 'origin/main' - extract the branch name
+        ref = result.process.stdout.rstrip()
+        if ref.startswith("origin/"):
+            return ref[len("origin/") :]
+        return ref
     return None
 
 
 def get_current_branch(folder_path: Path) -> Optional[str]:
-    shell_cmd = "git rev-parse --abbrev-ref HEAD"
-    result = exec_command(folder_path, shell_cmd)
+    result = exec_command(folder_path, ["git", "rev-parse", "--abbrev-ref", "HEAD"])
     if result and result.process.returncode == 0:
         return result.process.stdout.rstrip()
     return None
 
 
-def exec_command(folder_path: Path, shell_cmd: str) -> ShellExecutionSummary:
-    # this shell_cmd/cmd logic was borrowed from Packages/Default/exec.py
-
-    if shell_cmd:
-        if sys.platform == "win32":
-            # Use shell=True on Windows, so shell_cmd is passed through
-            # with the correct escaping
-            cmd = shell_cmd
-            shell = True
-        else:
-            cmd = ["/usr/bin/env", "bash", "-c", shell_cmd]
-            shell = False
-    else:
-        shell = False
-    return execute_with_stdin(cmd, shell, "", folder_path)
+def exec_command(folder_path: Path, cmd: list[str]) -> ShellExecutionSummary:
+    return execute_with_stdin(cmd, False, "", folder_path)
 
 
 # returns the completed subpress and how long it took to complete as a float
