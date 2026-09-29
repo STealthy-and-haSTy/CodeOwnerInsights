@@ -6,11 +6,17 @@ import os
 import html
 from dataclasses import dataclass
 
-from .codeowners import CodeOwnerSpecification, get_code_owners_file, parse_code_owners, get_resolved_code_owners_for_file, is_path_relative_to
+from .codeowners import (
+    CodeOwnerSpecification,
+    get_code_owners_file,
+    parse_code_owners,
+    get_resolved_code_owners_for_file,
+    is_path_relative_to,
+)
 from .git import get_git_changed_files_compared_to_default_branch
 
 
-STATUS_BAR_KEY = 'codeowner'
+STATUS_BAR_KEY = "codeowner"
 codeowner_window_cache = {}
 
 
@@ -28,25 +34,34 @@ def clear_status_bar_for_all_open_windows():
 class CodeOwnerCacheEntry:
     specifications: List[CodeOwnerSpecification]
     modification_time: float
-    
+
     def is_valid(self, codeowners_file: Path) -> bool:
-        return codeowners_file.exists() and self.modification_time == codeowners_file.stat().st_mtime
+        return (
+            codeowners_file.exists()
+            and self.modification_time == codeowners_file.stat().st_mtime
+        )
 
 
-def get_code_owner_cache_entry(window: sublime.Window, folder_path: Path) -> Optional[CodeOwnerCacheEntry]:
+def get_code_owner_cache_entry(
+    window: sublime.Window, folder_path: Path
+) -> Optional[CodeOwnerCacheEntry]:
     if window.id() not in codeowner_window_cache.keys():
         codeowner_window_cache[window.id()] = dict()
     return codeowner_window_cache[window.id()].get(folder_path, None)
 
 
-def set_code_owner_cache_entry(window: sublime.Window, folder_path: Path, entry: CodeOwnerCacheEntry) -> None:
+def set_code_owner_cache_entry(
+    window: sublime.Window, folder_path: Path, entry: CodeOwnerCacheEntry
+) -> None:
     if window.id() not in codeowner_window_cache.keys():
         codeowner_window_cache[window.id()] = dict()
     codeowner_window_cache[window.id()][folder_path] = entry
 
 
 class CodeOwnerListener(sublime_plugin.EventListener):
-    def on_load_async(self, view: sublime.View): # TODO: EventListener.on_load_async doesn't seem to be called when previewing via Goto Anything if file not already open
+    def on_load_async(
+        self, view: sublime.View
+    ):  # TODO: EventListener.on_load_async doesn't seem to be called when previewing via Goto Anything if file not already open
         update_code_owner_in_status_bar(view)
 
     def on_post_save_async(self, view: sublime.View):
@@ -64,7 +79,7 @@ class CodeOwnerListener(sublime_plugin.EventListener):
             del codeowner_window_cache[window.id()]
 
     def on_load_project_async(self, window: sublime.Window):
-        pass # TODO: cache codeowners files
+        pass  # TODO: cache codeowners files
 
 
 def clear_cache_when_codeowner_file_saved(view: sublime.View) -> None:
@@ -76,7 +91,9 @@ def clear_cache_when_codeowner_file_saved(view: sublime.View) -> None:
     for project_folder in relevant_project_folders:
         code_owners_path = get_code_owners_file(project_folder)
         if code_owners_path == saved_file_path:
-            print(f'CodeOwnerInsights: {saved_file_path} has been updated, clearing codeowner cache')
+            print(
+                f"CodeOwnerInsights: {saved_file_path} has been updated, clearing codeowner cache"
+            )
             codeowner_window_cache[view.window().id()] = dict()
             return
 
@@ -87,8 +104,15 @@ def update_code_owner_in_status_bar(view: sublime.View) -> None:
         view.erase_status(STATUS_BAR_KEY)
     else:
         # TODO: have this f-string be configurable in settings
-        nearest_comment = codeowner.nearest_comment[1:].replace('\n#', '').strip() if codeowner.nearest_comment else ''
-        view.set_status(STATUS_BAR_KEY, f'Code Owner: {nearest_comment} - {", ".join(codeowner.owners)}')
+        nearest_comment = (
+            codeowner.nearest_comment[1:].replace("\n#", "").strip()
+            if codeowner.nearest_comment
+            else ""
+        )
+        view.set_status(
+            STATUS_BAR_KEY,
+            f"Code Owner: {nearest_comment} - {', '.join(codeowner.owners)}",
+        )
 
 
 def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecification]:
@@ -122,7 +146,9 @@ def get_project_folders_for_view(view: sublime.View) -> Optional[Iterable[Path]]
     return get_project_folders_for_file(file_path, window)
 
 
-def get_project_folders_for_file(file_path: Path, window: sublime.Window) -> Iterable[Path]:
+def get_project_folders_for_file(
+    file_path: Path, window: sublime.Window
+) -> Iterable[Path]:
     # TODO: this should be relative to git root, which may not be ST project root...
     # `git rev-parse --show-toplevel` returns full path to folder containing .git folder (could be submodule)
     for folder in window.folders():
@@ -134,18 +160,24 @@ def get_project_folders_for_file(file_path: Path, window: sublime.Window) -> Ite
         yield folder_path
 
 
-def get_code_owner(window: sublime.Window, folder_path: Path, file_name: Path) -> Optional[CodeOwnerSpecification]:
+def get_code_owner(
+    window: sublime.Window, folder_path: Path, file_name: Path
+) -> Optional[CodeOwnerSpecification]:
     specifications = get_code_owner_specifications_for_folder(window, folder_path)
 
     if specifications:
-        relevant_codeowner_specification = get_resolved_code_owners_for_file(specifications, Path(os.path.relpath(file_name, folder_path)))
+        relevant_codeowner_specification = get_resolved_code_owners_for_file(
+            specifications, Path(os.path.relpath(file_name, folder_path))
+        )
         if relevant_codeowner_specification:
             return relevant_codeowner_specification
 
     return None
 
 
-def get_code_owner_specifications_for_folder(window: sublime.Window, folder_path: Path) -> Optional[Iterable[CodeOwnerSpecification]]:
+def get_code_owner_specifications_for_folder(
+    window: sublime.Window, folder_path: Path
+) -> Optional[Iterable[CodeOwnerSpecification]]:
     # check cache first
     cache_entry = get_code_owner_cache_entry(window, folder_path)
     if cache_entry:
@@ -157,15 +189,23 @@ def get_code_owner_specifications_for_folder(window: sublime.Window, folder_path
     codeowners_file = get_code_owners_file(folder_path)
     if codeowners_file:
         modification_time = codeowners_file.stat().st_mtime
-        specifications = list(parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8')))
-        
-        set_code_owner_cache_entry(window, folder_path, CodeOwnerCacheEntry(specifications, modification_time))
+        specifications = list(
+            parse_code_owners(
+                codeowners_file, codeowners_file.read_text(encoding="utf-8")
+            )
+        )
+
+        set_code_owner_cache_entry(
+            window, folder_path, CodeOwnerCacheEntry(specifications, modification_time)
+        )
         return specifications
 
     return None
 
 
-def get_git_change_owners_for_folder(window: sublime.Window, folder_path: Path, include_unowned: bool) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
+def get_git_change_owners_for_folder(
+    window: sublime.Window, folder_path: Path, include_unowned: bool
+) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
     for file_path in get_git_changed_files_compared_to_default_branch(folder_path):
         # git diff --name-only reports paths relative to the folder it was run in
         owner = get_code_owner(window, folder_path, folder_path / file_path)
@@ -173,18 +213,31 @@ def get_git_change_owners_for_folder(window: sublime.Window, folder_path: Path, 
             yield (folder_path, file_path, owner)
 
 
-def get_git_change_owners(window: sublime.Window, include_unowned: bool) -> Iterable[Tuple[Path, Optional[CodeOwnerSpecification]]]:
+def get_git_change_owners(
+    window: sublime.Window, include_unowned: bool
+) -> Iterable[Tuple[Path, Optional[CodeOwnerSpecification]]]:
     for folder_path in window.folders():
-        for result in get_git_change_owners_for_folder(window, Path(folder_path), include_unowned):
+        for result in get_git_change_owners_for_folder(
+            window, Path(folder_path), include_unowned
+        ):
             yield result
 
 
 class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
     """Open the CODEOWNERS file on the relevant line which applies to the current file."""
+
     def run(self, edit):
         codeowner = get_code_owner_for_view(self.view)
         if codeowner:
-            self.view.window().run_command('open_file', { 'file': str(codeowner.codeowners_file_path) + ':' + str(codeowner.line_number), 'encoded_position': True })
+            self.view.window().run_command(
+                "open_file",
+                {
+                    "file": str(codeowner.codeowners_file_path)
+                    + ":"
+                    + str(codeowner.line_number),
+                    "encoded_position": True,
+                },
+            )
 
     def is_enabled(self) -> bool:
         codeowner = get_code_owner_for_view(self.view)
@@ -194,36 +247,41 @@ class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
 class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
     def run(self, edit, include_unowned: bool = False):
         result = list(get_git_change_owners(self.view.window(), include_unowned))
-        
+
         # group by owners
         # TODO: group by owner singular?
         owner_tree = {}
         for folder, file, codeowner_spec in result:
             if codeowner_spec and codeowner_spec.owners:
-                owners = ', '.join(codeowner_spec.owners)
+                owners = ", ".join(codeowner_spec.owners)
             else:
-                owners = '*UNOWNED*'
+                owners = "*UNOWNED*"
             if owners not in owner_tree:
                 owner_tree[owners] = []
             owner_tree[owners].append(str(file))
 
         # format popup
-        popup_content = ''
+        popup_content = ""
         for owners in owner_tree.keys():
-            popup_content += f'<h2>{html.escape(owners)}</h2>\n<ul>\n'
+            popup_content += f"<h2>{html.escape(owners)}</h2>\n<ul>\n"
 
             for file in owner_tree[owners]:
-                command_url = sublime.html_format_command('open_file', {'file': str(folder / file)})
+                command_url = sublime.html_format_command(
+                    "open_file", {"file": str(folder / file)}
+                )
                 # TODO: show comment by file or subgroup by comment then file
-                popup_content += f'<li><a href="{command_url}">{html.escape(file)}</a></li>\n'
-            popup_content += '</ul>\n'
+                popup_content += (
+                    f'<li><a href="{command_url}">{html.escape(file)}</a></li>\n'
+                )
+            popup_content += "</ul>\n"
 
         self.view.show_popup(
             content=popup_content,
             location=self.view.sel()[0].a,
             on_navigate=self.navigate,
             max_width=540,
-            max_height=320)
+            max_height=320,
+        )
 
     def is_enabled(self) -> bool:
         window_id = self.view.window().id()
@@ -232,14 +290,14 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         return False
 
     def navigate(self, link: str) -> None:
-        if link.startswith('subl:'):
-            link = link[len('subl:'):]
+        if link.startswith("subl:"):
+            link = link[len("subl:") :]
 
-        if open_angle_pos := link.find('{'):
+        if open_angle_pos := link.find("{"):
             command_args = sublime.decode_value(link[open_angle_pos:])
             command_name = link[0:open_angle_pos].strip()
         else:
             command_args = dict()
             command_name = link.strip()
-        
+
         self.view.window().run_command(command_name, command_args)
