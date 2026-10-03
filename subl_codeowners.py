@@ -17,6 +17,7 @@ from .git import get_git_changed_files_compared_to_default_branch
 
 
 STATUS_BAR_KEY = "codeowner"
+STATUS_BAR_KEY_COMPUTING_DIFF = "codeowner_diff"
 codeowner_window_cache = {}
 
 
@@ -265,7 +266,7 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # same include_unowned but forcing a fetch from the remote
         self._include_unowned = include_unowned
         self.view.set_status(
-            STATUS_BAR_KEY, "CodeOwnerInsights: computing git diff..."
+            STATUS_BAR_KEY_COMPUTING_DIFF, "CodeOwnerInsights: computing git diff..."
         )
         sublime.set_timeout_async(
             lambda: self._compute_and_show(
@@ -291,7 +292,7 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
             )
         finally:
             # clear the status message on the UI thread once the work is done
-            sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY), 0)
+            sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY_COMPUTING_DIFF), 0)
 
         owner_tree = self._group_by_owners(result)
         popup_content = self._format_popup(owner_tree)
