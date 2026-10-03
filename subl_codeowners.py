@@ -250,12 +250,20 @@ class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
 
 
 class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
-    def run(self, edit, include_unowned: bool = False):
+    def run(self, edit, include_unowned: bool = False, fetch_remote_override=None):
         # The git work (fetch + diff + owner resolution) can take a couple of
         # seconds and is network-bound, so run it off the UI thread. Without
         # this the command blocks Sublime's event loop and the editor freezes
         # until it finishes. Show a status message first so the wait is visible.
-        fetch_remote = self._get_setting("fetch_remote_default_branch", True)
+        # fetch_remote_override, when set, forces that mode for this invocation
+        # regardless of the user setting - used by the popup's refresh button.
+        if fetch_remote_override is not None:
+            fetch_remote = fetch_remote_override
+        else:
+            fetch_remote = self._get_setting("fetch_remote_default_branch", True)
+        # remember the mode so the popup's refresh button can re-run with the
+        # same include_unowned but forcing a fetch from the remote
+        self._include_unowned = include_unowned
         self.view.set_status(
             STATUS_BAR_KEY, "CodeOwnerInsights: computing git diff..."
         )
@@ -307,6 +315,14 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
     @staticmethod
     def _format_popup(owner_tree: dict) -> str:
         popup_content = ""
+        # refresh button: re-runs the diff forcing a fetch from the remote, so
+        # results reflect the real baseline even when the setting is off. This
+        # is how a user corrects stale-looking results with a single click.
+        popup_content += (
+            '<a href="subl:refresh" style="padding: 0 6px; font-weight: bold;">'
+            "\u21bb Refresh from remote</a>\n"
+            "<hr/>\n"
+        )
         for owners in owner_tree.keys():
             popup_content += f"<h2>{html.escape(owners)}</h2>\n<ul>\n"
 
@@ -332,6 +348,20 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
             max_height=320,
         )
 
+    def _refresh(self) -> None:
+        # close the current popup, then re-run the diff forcing a fetch from
+        # the remote regardless of the user setting
+        self.view.hide_popup()
+        self.view.set_status(
+            STATUS_BAR_KEY, "CodeOwnerInsights: refreshing from remote..."
+        )
+        sublime.set_timeout_async(
+            lambda: self._compute_and_show(
+                self.view.window(), self._include_unowned, True
+            ),
+            0,
+        )
+
     def is_enabled(self) -> bool:
         window_id = self.view.window().id()
         if window_id in codeowner_window_cache and codeowner_window_cache[window_id]:
@@ -341,6 +371,10 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
     def navigate(self, link: str) -> None:
         if link.startswith("subl:"):
             link = link[len("subl:") :]
+
+        if link == "refresh":
+            self._refresh()
+            return
 
         if open_angle_pos := link.find("{"):
             command_args = sublime.decode_value(link[open_angle_pos:])
