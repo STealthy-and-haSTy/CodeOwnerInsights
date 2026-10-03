@@ -117,6 +117,63 @@ def test_changed_files_compared_to_default_branch_with_filter(repo: Path) -> Non
     assert files == {Path("added.py"), Path("renamed.py")}
 
 
+@pytest.fixture
+def repo_with_stale_local_default(tmp_path: Path) -> Path:
+    """The default branch on origin is ahead of the local default branch.
+
+    This reproduces the real-world situation where the user's local ``main``/
+    ``master`` has not been fast-forwarded to ``origin/main`` yet, and the feature
+    branch was created from the up-to-date ``origin/main``. Comparing against the
+    stale local default would drag the merge base back and surface every commit
+    the default branch has made since as if they were this branch's changes.
+    """
+    origin = tmp_path / "origin.git"
+    origin.mkdir()
+    git(tmp_path, "init", "--bare", "--initial-branch=main", str(origin))
+
+    folder = tmp_path / "repo"
+    folder.mkdir()
+    git(folder, "init", "--initial-branch=main")
+    git(folder, "config", "user.name", "CodeOwnerInsights")
+    git(folder, "config", "user.email", "test@example.com")
+    git(folder, "config", "commit.gpgsign", "false")
+
+    # commit shared by the local default, origin, and the feature branch
+    write_file(folder, "shared.py", "# shared\n")
+    commit_all(folder, "shared commit")
+    git(folder, "remote", "add", "origin", str(origin))
+    git(folder, "push", "--set-upstream", "origin", "main")
+    git(folder, "remote", "set-head", "origin", "main")
+
+    # advance origin/main beyond the local default
+    write_file(folder, "upstream.py", "# upstream\n")
+    commit_all(folder, "upstream commit")
+    git(folder, "push", "origin", "main")
+
+    # leave the local default behind origin/main
+    git(folder, "reset", "--hard", "HEAD~1")
+
+    # create the feature branch from the up-to-date origin/main
+    git(folder, "checkout", "-b", "feature", "origin/main")
+    write_file(folder, "feature.py", "# feature\n")
+    commit_all(folder, "feature changes")
+
+    return folder
+
+
+def test_changed_files_compare_against_remote_default_branch(
+    repo_with_stale_local_default: Path,
+) -> None:
+    # only the feature branch's own changes are reported, not the unrelated
+    # commits that origin/main has made since the local default fell behind
+    files = set(
+        get_git_changed_files_compared_to_default_branch(
+            repo_with_stale_local_default
+        )
+    )
+    assert files == {Path("feature.py")}
+
+
 def test_changed_files_are_relative_to_the_repo_not_the_cwd(
     repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
