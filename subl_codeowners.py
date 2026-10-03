@@ -6,6 +6,7 @@ import os
 import html
 from dataclasses import dataclass
 
+from .coercion import coerce_bool
 from .codeowners import (
     CodeOwnerSpecification,
     get_code_owners_file,
@@ -20,32 +21,6 @@ STATUS_BAR_KEY = "codeowner"
 STATUS_BAR_KEY_COMPUTING_DIFF = "codeowner_diff"
 SETTINGS_FILE = "CodeOwnerInsights.sublime-settings"
 codeowner_window_cache = {}
-
-
-def coerce_bool(value: object, default: bool) -> bool:
-    """Interpret a value from a settings file or command argument as a boolean.
-
-    Settings are user-editable JSON, and command arguments can be supplied by
-    a keybinding, so either can arrive as a string or as the wrong type. An
-    unrecognised value falls back to ``default`` rather than guessing, so a
-    typo cannot silently flip the setting.
-    """
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        # strip quotes as well as space, so a value that was double-quoted by
-        # mistake ("\"false\"") is read the same as a bare one
-        lowered = value.strip().strip("\"'").strip().lower()
-        if lowered in ("true", "yes", "on", "1"):
-            return True
-        if lowered in ("false", "no", "off", "0"):
-            return False
-        return default
-    if isinstance(value, (int, float)):
-        # a numeric boolean means what it looks like, so 0 reads as off rather
-        # than as an unrecognised value falling back to the default
-        return bool(value)
-    return default
 
 
 def get_bool_setting(name: str, default: bool) -> bool:

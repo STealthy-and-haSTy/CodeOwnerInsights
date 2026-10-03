@@ -6,6 +6,7 @@ This repository contains a Sublime Text plugin for identifying code owners from 
 
 - `codeowners.py` - Core parsing logic (pure Python, no Sublime dependencies)
 - `git.py` - Git shell-outs (pure Python, no Sublime dependencies)
+- `coercion.py` - Value-narrowing helpers for settings and command arguments (pure Python, no Sublime dependencies)
 - `subl_codeowners.py` - Sublime Text plugin (the only module that imports `sublime`/`sublime_plugin`)
 - `Default.sublime-commands` - Command palette entries
 - `dependencies.json` - Vendored dependencies for Sublime's dependency manager
@@ -15,6 +16,7 @@ This repository contains a Sublime Text plugin for identifying code owners from 
 
 - Core parsing logic in `codeowners.py` and `git.py` is framework-agnostic and independently testable
 - No Sublime Text APIs outside `subl_codeowners.py` - keeps business logic pure
+- Keep any logic worth asserting on out of `subl_codeowners.py` and in a pure module, so it can be unit tested. `coercion.py` exists because `subl_codeowners.py` cannot be imported outside the editor
 - All packages in the Python 3.8 plugin host share a single interpreter process, so never mutate process-global state. In particular `git.py` must not call `os.chdir()`: it would change the working directory for every other package for the rest of the session. Pass `cwd=` to `subprocess.run()` instead.
 - Uses `wcmatch` for GitHub-compatible glob pattern matching
 
@@ -45,6 +47,7 @@ Tests are in the `test/` directory and use pytest. Everything except `subl_codeo
 
 - `test_parsing.py`, `test_matching.py`, `test_utils.py` - `codeowners.py`
 - `test_git.py` - `git.py`. Builds real temporary repositories in `tmp_path` (including a bare `origin` so `origin/HEAD` resolves) and shells out to git. No network access, and no test may mutate the process working directory
+- `test_coercion.py` - `coercion.py`. Covers the spellings a user can write in a settings file or keybinding, including the malformed ones that must fall back to the default rather than flip the setting
 - `subl_codeowners.py` is untested, as importing it requires the `sublime` module
 
 ## Dependencies
@@ -75,7 +78,7 @@ The plugin searches for CODEOWNERS files in this order:
 
 ## Architecture
 
-The separation between `codeowners.py`/`git.py` and `subl_codeowners.py` allows:
+The separation between `codeowners.py`/`git.py`/`coercion.py` and `subl_codeowners.py` allows:
 - Independent testing of core logic
 - Framework-agnostic code that can be reused
 - Clear boundary between business logic and UI framework
