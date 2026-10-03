@@ -246,35 +246,65 @@ class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
 
 class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
     def run(self, edit, include_unowned: bool = False):
-        result = list(get_git_change_owners(self.view.window(), include_unowned))
+        # The git work (fetch + diff + owner resolution) can take a couple of
+        # seconds and is network-bound, so run it off the UI thread. Without
+        # this the command blocks Sublime's event loop and the editor freezes
+        # until it finishes. Show a status message first so the wait is visible.
+        self.view.set_status(
+            STATUS_BAR_KEY, "CodeOwnerInsights: computing git diff..."
+        )
+        sublime.set_timeout_async(
+            lambda: self._compute_and_show(self.view.window(), include_unowned), 0
+        )
 
-        # group by owners
-        # TODO: group by owner singular?
-        owner_tree = {}
+    def _compute_and_show(
+        self, window: sublime.Window, include_unowned: bool
+    ) -> None:
+        try:
+            result = list(get_git_change_owners(window, include_unowned))
+        finally:
+            # clear the status message on the UI thread once the work is done
+            sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY), 0)
+
+        owner_tree = self._group_by_owners(result)
+        popup_content = self._format_popup(owner_tree)
+        sublime.set_timeout(lambda: self._show_popup(popup_content), 0)
+
+    @staticmethod
+    def _group_by_owners(
+        result: Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]
+    ) -> dict:
+        # group by owners, keeping each file together with the folder it lives
+        # in so the open-file link resolves to the right project folder
+        owner_tree: dict = {}
         for folder, file, codeowner_spec in result:
             if codeowner_spec and codeowner_spec.owners:
                 owners = ", ".join(codeowner_spec.owners)
             else:
                 owners = "*UNOWNED*"
-            if owners not in owner_tree:
-                owner_tree[owners] = []
-            owner_tree[owners].append(str(file))
+            owner_tree.setdefault(owners, []).append((folder, file))
+        return owner_tree
 
-        # format popup
+    @staticmethod
+    def _format_popup(owner_tree: dict) -> str:
         popup_content = ""
         for owners in owner_tree.keys():
             popup_content += f"<h2>{html.escape(owners)}</h2>\n<ul>\n"
 
-            for file in owner_tree[owners]:
+            for folder, file in owner_tree[owners]:
                 command_url = sublime.html_format_command(
                     "open_file", {"file": str(folder / file)}
                 )
-                # TODO: show comment by file or subgroup by comment then file
                 popup_content += (
-                    f'<li><a href="{command_url}">{html.escape(file)}</a></li>\n'
+                    f'<li><a href="{command_url}">{html.escape(str(file))}</a></li>\n'
                 )
             popup_content += "</ul>\n"
+        return popup_content
 
+    def _show_popup(self, popup_content: str) -> None:
+        if not popup_content:
+            self.view.erase_status(STATUS_BAR_KEY)
+            return
         self.view.show_popup(
             content=popup_content,
             location=self.view.sel()[0].a,
