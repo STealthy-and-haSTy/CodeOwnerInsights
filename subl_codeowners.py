@@ -18,7 +18,38 @@ from .git import get_git_changed_files_compared_to_default_branch
 
 STATUS_BAR_KEY = "codeowner"
 STATUS_BAR_KEY_COMPUTING_DIFF = "codeowner_diff"
+SETTINGS_FILE = "CodeOwnerInsights.sublime-settings"
 codeowner_window_cache = {}
+
+
+def coerce_bool(value: object, default: bool) -> bool:
+    """Interpret a value from a settings file or command argument as a boolean.
+
+    Settings are user-editable JSON, and command arguments can be supplied by
+    a keybinding, so either can arrive as a string or as the wrong type. An
+    unrecognised value falls back to ``default`` rather than guessing, so a
+    typo cannot silently flip the setting.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        # strip quotes as well as space, so a value that was double-quoted by
+        # mistake ("\"false\"") is read the same as a bare one
+        lowered = value.strip().strip("\"'").strip().lower()
+        if lowered in ("true", "yes", "on", "1"):
+            return True
+        if lowered in ("false", "no", "off", "0"):
+            return False
+        return default
+    if isinstance(value, (int, float)):
+        # a numeric boolean means what it looks like, so 0 reads as off rather
+        # than as an unrecognised value falling back to the default
+        return bool(value)
+    return default
+
+
+def get_bool_setting(name: str, default: bool) -> bool:
+    return coerce_bool(sublime.load_settings(SETTINGS_FILE).get(name, default), default)
 
 
 def plugin_unloaded() -> None:
@@ -257,11 +288,13 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # this the command blocks Sublime's event loop and the editor freezes
         # until it finishes. Show a status message first so the wait is visible.
         # fetch_remote_override, when set, forces that mode for this invocation
-        # regardless of the user setting - used by the popup's refresh button.
+        # regardless of the user setting. It is reachable from a keybinding
+        # ("args": {"fetch_remote_override": true}), so it is coerced the same
+        # way as the setting: a quoted "false" must not read as true.
         if fetch_remote_override is not None:
-            fetch_remote = fetch_remote_override
+            fetch_remote = coerce_bool(fetch_remote_override, True)
         else:
-            fetch_remote = self._get_setting("fetch_remote_default_branch", True)
+            fetch_remote = get_bool_setting("fetch_remote_default_branch", True)
         # remember the mode so the popup's refresh button can re-run with the
         # same include_unowned but forcing a fetch from the remote
         self._include_unowned = include_unowned
@@ -274,11 +307,6 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
             ),
             0,
         )
-
-    @staticmethod
-    def _get_setting(name: str, default) -> object:
-        settings = sublime.load_settings("CodeOwnerInsights.sublime-settings")
-        return settings.get(name, default)
 
     def _compute_and_show(
         self,
