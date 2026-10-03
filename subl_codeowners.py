@@ -221,7 +221,7 @@ def get_git_change_owners_for_folder(
 
 def get_git_change_owners(
     window: sublime.Window, include_unowned: bool, fetch_remote: bool
-) -> Iterable[Tuple[Path, Optional[CodeOwnerSpecification]]]:
+) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
     for folder_path in window.folders():
         for result in get_git_change_owners_for_folder(
             window, Path(folder_path), include_unowned, fetch_remote
