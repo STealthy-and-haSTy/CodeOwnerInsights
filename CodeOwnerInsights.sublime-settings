@@ -1,0 +1,14 @@
+{
+    // When true, the default-branch diff command refreshes the local
+    // origin/<default> tracking ref before computing the diff, so the result
+    // reflects the real remote baseline. This is network-bound (a few seconds
+    // per invocation) and blocks the UI thread only briefly since the work
+    // runs asynchronously.
+
+    // When false, the command uses the local origin/<default> ref as-is. This
+    // is fast but can be stale if the remote has moved since the last fetch,
+    // in which case unrelated default-branch commits may surface as if they
+    // were this branch's changes. Useful when offline or when speed matters
+    // more than freshness.
+    "fetch_remote_default_branch": true
+}

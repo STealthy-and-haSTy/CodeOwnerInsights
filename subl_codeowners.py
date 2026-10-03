@@ -204,9 +204,14 @@ def get_code_owner_specifications_for_folder(
 
 
 def get_git_change_owners_for_folder(
-    window: sublime.Window, folder_path: Path, include_unowned: bool
+    window: sublime.Window,
+    folder_path: Path,
+    include_unowned: bool,
+    fetch_remote: bool,
 ) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
-    for file_path in get_git_changed_files_compared_to_default_branch(folder_path):
+    for file_path in get_git_changed_files_compared_to_default_branch(
+        folder_path, fetch_remote=fetch_remote
+    ):
         # git diff --name-only reports paths relative to the folder it was run in
         owner = get_code_owner(window, folder_path, folder_path / file_path)
         if owner or include_unowned:
@@ -214,11 +219,11 @@ def get_git_change_owners_for_folder(
 
 
 def get_git_change_owners(
-    window: sublime.Window, include_unowned: bool
+    window: sublime.Window, include_unowned: bool, fetch_remote: bool
 ) -> Iterable[Tuple[Path, Optional[CodeOwnerSpecification]]]:
     for folder_path in window.folders():
         for result in get_git_change_owners_for_folder(
-            window, Path(folder_path), include_unowned
+            window, Path(folder_path), include_unowned, fetch_remote
         ):
             yield result
 
@@ -250,18 +255,32 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # seconds and is network-bound, so run it off the UI thread. Without
         # this the command blocks Sublime's event loop and the editor freezes
         # until it finishes. Show a status message first so the wait is visible.
+        fetch_remote = self._get_setting("fetch_remote_default_branch", True)
         self.view.set_status(
             STATUS_BAR_KEY, "CodeOwnerInsights: computing git diff..."
         )
         sublime.set_timeout_async(
-            lambda: self._compute_and_show(self.view.window(), include_unowned), 0
+            lambda: self._compute_and_show(
+                self.view.window(), include_unowned, fetch_remote
+            ),
+            0,
         )
 
+    @staticmethod
+    def _get_setting(name: str, default) -> object:
+        settings = sublime.load_settings("CodeOwnerInsights.sublime-settings")
+        return settings.get(name, default)
+
     def _compute_and_show(
-        self, window: sublime.Window, include_unowned: bool
+        self,
+        window: sublime.Window,
+        include_unowned: bool,
+        fetch_remote: bool,
     ) -> None:
         try:
-            result = list(get_git_change_owners(window, include_unowned))
+            result = list(
+                get_git_change_owners(window, include_unowned, fetch_remote)
+            )
         finally:
             # clear the status message on the UI thread once the work is done
             sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY), 0)

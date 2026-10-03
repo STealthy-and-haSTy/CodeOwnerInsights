@@ -120,13 +120,12 @@ def test_changed_files_compared_to_default_branch_with_filter(repo: Path) -> Non
 
 @pytest.fixture
 def repo_with_stale_local_default(tmp_path: Path) -> Path:
-    """The default branch on origin is ahead of the local default branch.
+    """The local origin/main tracking ref is stale behind the real remote.
 
-    This reproduces the real-world situation where the user's local ``main``/
-    ``master`` has not been fast-forwarded to ``origin/main`` yet, and the feature
-    branch was created from the up-to-date ``origin/main``. Comparing against the
-    stale local default would drag the merge base back and surface every commit
-    the default branch has made since as if they were this branch's changes.
+    The remote has a commit the local tracking ref does not know about, and the
+    feature branch was created from the up-to-date remote. Without a fetch the
+    merge base is dragged back to the stale ref and the unrelated remote commit
+    is reported as if it were this branch's changes.
     """
     origin = tmp_path / "origin.git"
     origin.mkdir()
@@ -139,25 +138,28 @@ def repo_with_stale_local_default(tmp_path: Path) -> Path:
     git(folder, "config", "user.email", "test@example.com")
     git(folder, "config", "commit.gpgsign", "false")
 
-    # commit shared by the local default, origin, and the feature branch
+    # commit shared by the local default, the remote, and the feature branch
     write_file(folder, "shared.py", "# shared\n")
     commit_all(folder, "shared commit")
+    shared_sha = git(folder, "rev-parse", "HEAD")
     git(folder, "remote", "add", "origin", str(origin))
     git(folder, "push", "--set-upstream", "origin", "main")
     git(folder, "remote", "set-head", "origin", "main")
 
-    # advance origin/main beyond the local default
+    # advance the remote beyond the shared commit
     write_file(folder, "upstream.py", "# upstream\n")
     commit_all(folder, "upstream commit")
     git(folder, "push", "origin", "main")
 
-    # leave the local default behind origin/main
-    git(folder, "reset", "--hard", "HEAD~1")
-
-    # create the feature branch from the up-to-date origin/main
+    # create the feature branch from the up-to-date remote
     git(folder, "checkout", "-b", "feature", "origin/main")
     write_file(folder, "feature.py", "# feature\n")
     commit_all(folder, "feature changes")
+
+    # rewind the local origin/main tracking ref to the shared commit, so it no
+    # longer reflects the remote - simulating a user who has not fetched since
+    # the remote moved
+    git(folder, "update-ref", "refs/remotes/origin/main", shared_sha)
 
     return folder
 
@@ -253,3 +255,18 @@ def test_changed_files_default_branch_fetches_remote_ref(
         )
     )
     assert files == {Path("feature.py")}
+
+
+def test_changed_files_default_branch_without_fetch_is_stale(
+    repo_with_stale_local_default: Path,
+) -> None:
+    # with fetch_remote disabled the stale local origin/main ref is used as-is.
+    # The merge base is dragged back to the stale ref and the unrelated
+    # default-branch commit (upstream.py) is reported as if it were this
+    # branch's change. This is the fast-but-stale path.
+    files = set(
+        get_git_changed_files_compared_to_default_branch(
+            repo_with_stale_local_default, fetch_remote=False
+        )
+    )
+    assert files == {Path("feature.py"), Path("upstream.py")}
