@@ -287,12 +287,12 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         fetch_remote: bool,
     ) -> None:
         try:
-            result = list(
-                get_git_change_owners(window, include_unowned, fetch_remote)
-            )
+            result = list(get_git_change_owners(window, include_unowned, fetch_remote))
         finally:
             # clear the status message on the UI thread once the work is done
-            sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY_COMPUTING_DIFF), 0)
+            sublime.set_timeout(
+                lambda: self.view.erase_status(STATUS_BAR_KEY_COMPUTING_DIFF), 0
+            )
 
         owner_tree = self._group_by_owners(result)
         popup_content = self._format_popup(owner_tree)
@@ -300,7 +300,7 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
 
     @staticmethod
     def _group_by_owners(
-        result: Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]
+        result: Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]],
     ) -> dict:
         # group by owners, keeping each file together with the folder it lives
         # in so the open-file link resolves to the right project folder
