@@ -84,11 +84,30 @@ def get_default_branch_remote_ref(folder_path: Path) -> Optional[str]:
     branch = get_default_branch(folder_path)
     if not branch:
         return None
+    # Refresh the remote-tracking ref first. The local ref can lag behind the
+    # remote (e.g. the user has not run fetch/pull since the default branch
+    # moved), and a stale ref would drag the merge base back and surface
+    # unrelated default-branch commits. Failures are ignored: the verify below
+    # falls back to the local branch when the remote ref is unavailable.
+    fetch_default_branch(folder_path, branch)
     remote_ref = f"origin/{branch}"
     result = exec_command(folder_path, ["git", "rev-parse", "--verify", remote_ref])
     if result and result.process.returncode == 0:
         return remote_ref
     return branch
+
+
+def fetch_default_branch(folder_path: Path, branch: str) -> None:
+    """Best-effort refresh of the remote-tracking ref for ``branch``.
+
+    Network or permission failures are intentionally ignored: the caller falls
+    back to the local ref when the fetch does not succeed.
+    """
+    result = exec_command(
+        folder_path, ["git", "fetch", "origin", branch]
+    )
+    if not result or result.process.returncode != 0:
+        return
 
 
 def get_current_branch(folder_path: Path) -> Optional[str]:

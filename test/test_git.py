@@ -9,6 +9,7 @@ from git import (
     exec_command,
     get_current_branch,
     get_default_branch,
+    get_default_branch_remote_ref,
     get_git_changed_files_compared_to_branch,
     get_git_changed_files_compared_to_default_branch,
 )
@@ -233,3 +234,22 @@ def test_exec_command_runs_in_the_given_folder(repo: Path) -> None:
     assert os.path.realpath(summary.process.stdout.strip()) == os.path.realpath(
         str(repo)
     )
+
+
+def test_get_default_branch_remote_ref_returns_remote_ref(repo: Path) -> None:
+    # origin/main is available locally, so the remote-tracking ref is returned
+    # rather than falling back to the local branch
+    assert get_default_branch_remote_ref(repo) == "origin/main"
+
+
+def test_changed_files_default_branch_fetches_remote_ref(
+    repo_with_stale_local_default: Path,
+) -> None:
+    # the fixture's local default is stale behind origin/main; the function
+    # must fetch origin/main first so the merge base is correct
+    files = set(
+        get_git_changed_files_compared_to_default_branch(
+            repo_with_stale_local_default
+        )
+    )
+    assert files == {Path("feature.py")}
