@@ -1,0 +1,29 @@
+[
+  { "caption": "Preferences",
+    "mnemonic": "n",
+    "id": "preferences",
+    "children":
+    [
+      { "caption": "Package Settings",
+        "mnemonic": "P",
+        "id": "package-settings",
+        "children":
+        [
+          { "caption": "CodeOwnerInsights",
+            "children":
+            [
+              { "caption": "Settings",
+                "command": "edit_settings",
+                "args":
+                {
+                  "base_file": "${packages}/CodeOwnerInsights/CodeOwnerInsights.sublime-settings",
+                  "default": "// Settings in here override those in \"CodeOwnerInsights/CodeOwnerInsights.sublime-settings\".\n//\n// \"fetch_remote_default_branch\": when true, the default-branch diff\n// command refreshes origin/<default> from the remote before diffing, so the\n// result reflects the real remote baseline. This costs a network round-trip\n// per invocation. When false it uses the local origin/<default> ref as-is,\n// which is fast but can be stale if the remote has moved.\n{\n\t$0\n}\n"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]
