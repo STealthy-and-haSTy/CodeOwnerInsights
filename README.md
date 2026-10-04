@@ -19,6 +19,30 @@ considered, bonus points if you raise a Pull Request.
 Settings live in `CodeOwnerInsights.sublime-settings` and are editable from
 *Preferences → Package Settings → CodeOwnerInsights → Settings*.
 
+| Setting | Description |
+| --- | --- |
+| `status_bar_template` | Text shown in the status bar for the current file's code owner. See below. |
+| `fetch_remote_default_branch` | Whether the diff command refreshes `origin/<default>` first, at the cost of a network round trip. |
+
+The status bar text is a template. Wrap any of these keys in braces and they are
+replaced with values from the rule that resolved for the current file:
+
+| Key | Replaced with |
+| --- | --- |
+| `{owners}` | Every owner on the rule, comma separated. |
+| `{owner}` | Just the first owner. |
+| `{comment}` | The comment above the rule, flattened onto one line. |
+| `{pattern}` | The glob pattern that matched. |
+| `{line_number}` | The line the rule is on in its `CODEOWNERS` file. |
+| `{codeowners_file}` | Path to the `CODEOWNERS` file the rule came from. |
+
+The default is `"Code Owner: {comment} - {owners}"`. A key with nothing to say —
+`{comment}` on a rule with no comment above it, say — renders as nothing and the
+whitespace around it is collapsed, so a single template works for every rule
+rather than needing a special case per rule. A misspelled key is left in place
+rather than silently blanked, so it is obvious what went wrong. Setting the
+template to `""` hides the status bar entirely.
+
 There is experimental support for showing all `git` changed files compared to
 the default branch, grouped by code owner. You will find it in the command
 palette. Currently very ugly but gets the job done.

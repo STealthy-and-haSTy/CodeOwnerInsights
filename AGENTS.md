@@ -8,6 +8,7 @@ This repository contains a Sublime Text plugin for identifying code owners from 
   - `codeowners.py` - Core parsing logic
   - `git.py` - Git shell-outs
   - `coercion.py` - Value-narrowing helpers for settings and command arguments
+  - `status_text.py` - Status bar template substitution
   - `__init__.py` - Re-exports the public API
 - `subl_codeowners.py` - Sublime Text plugin (the only module that imports `sublime`/`sublime_plugin`)
 - `Default.sublime-commands` - Command palette entries
@@ -51,6 +52,7 @@ Tests are in the `test/` directory and use pytest. Everything except `subl_codeo
 - `test_parsing.py`, `test_matching.py`, `test_utils.py` - `codeownerinsights/codeowners.py`
 - `test_git.py` - `codeownerinsights/git.py`. Builds real temporary repositories in `tmp_path` (including a bare `origin` so `origin/HEAD` resolves) and shells out to git. No network access, and no test may mutate the process working directory
 - `test_coercion.py` - `codeownerinsights/coercion.py`. Covers the spellings a user can write in a settings file or keybinding, including the malformed ones that must fall back to the default rather than flip the setting
+- `test_status_text.py` - `codeownerinsights/status_text.py`. `test_default_template_renders_as_before` pins the default template to the hardcoded string the plugin used before the status bar became configurable; change it only when that visible output is meant to change
 - `subl_codeowners.py` is untested, as importing it requires the `sublime` module
 
 ## Dependencies

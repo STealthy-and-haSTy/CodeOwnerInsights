@@ -1,4 +1,21 @@
 {
+    // Text shown in the status bar for the current file's code owner. Wrap any
+    // of these keys in braces to have it replaced with the resolved rule's
+    // values:
+    //
+    //   {owners}          every owner on the rule, comma separated
+    //   {owner}           just the first owner, when the bar is tight
+    //   {comment}         the comment above the rule, flattened onto one line
+    //   {pattern}         the glob pattern that matched
+    //   {line_number}     the line the rule is on in its CODEOWNERS file
+    //   {codeowners_file} path to the CODEOWNERS file the rule came from
+    //
+    // A key with nothing to say, such as {comment} on a rule with no comment
+    // above it, renders as nothing and the surrounding whitespace is tidied up,
+    // so one template works for every rule. A key that is misspelled is left in
+    // place rather than silently blanked. Set this to "" to hide the status bar.
+    "status_bar_template": "Code Owner: {comment} - {owners}",
+
     // When true, the default-branch diff command refreshes the local
     // origin/<default> tracking ref before computing the diff, so the result
     // reflects the real remote baseline. This is network-bound (a few seconds

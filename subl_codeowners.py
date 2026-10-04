@@ -16,16 +16,31 @@ from .codeownerinsights.codeowners import (
     is_path_relative_to,
 )
 from .codeownerinsights.git import get_git_changed_files_compared_to_default_branch
+from .codeownerinsights.status_text import (
+    DEFAULT_STATUS_TEMPLATE,
+    format_comment,
+    render_status_text,
+)
 
 
 STATUS_BAR_KEY = "codeowner"
 STATUS_BAR_KEY_COMPUTING_DIFF = "codeowner_diff"
 SETTINGS_FILE = "CodeOwnerInsights.sublime-settings"
+STATUS_BAR_TEMPLATE_SETTING = "status_bar_template"
 codeowner_window_cache = {}
 
 
 def get_bool_setting(name: str, default: bool) -> bool:
     return coerce_bool(sublime.load_settings(SETTINGS_FILE).get(name, default), default)
+
+
+def get_status_bar_template() -> str:
+    template = sublime.load_settings(SETTINGS_FILE).get(
+        STATUS_BAR_TEMPLATE_SETTING, DEFAULT_STATUS_TEMPLATE
+    )
+    # a non-string setting would raise inside an event handler, and there is no
+    # sensible reading of it, so fall back rather than render a broken status bar
+    return template if isinstance(template, str) else DEFAULT_STATUS_TEMPLATE
 
 
 def plugin_unloaded() -> None:
@@ -110,17 +125,14 @@ def update_code_owner_in_status_bar(view: sublime.View) -> None:
     codeowner = get_code_owner_for_view(view)
     if not codeowner or not codeowner.owners:
         view.erase_status(STATUS_BAR_KEY)
+        return
+
+    status_text = render_status_text(get_status_bar_template(), codeowner)
+    if not status_text:
+        # an empty template is a legitimate way to turn the status bar off
+        view.erase_status(STATUS_BAR_KEY)
     else:
-        # TODO: have this f-string be configurable in settings
-        nearest_comment = (
-            codeowner.nearest_comment[1:].replace("\n#", "").strip()
-            if codeowner.nearest_comment
-            else ""
-        )
-        view.set_status(
-            STATUS_BAR_KEY,
-            f"Code Owner: {nearest_comment} - {', '.join(codeowner.owners)}",
-        )
+        view.set_status(STATUS_BAR_KEY, status_text)
 
 
 def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecification]:
@@ -291,24 +303,12 @@ def get_matching_code_owner_specifications_for_view(
     return matches
 
 
-def _format_nearest_comment(comment: Optional[str]) -> str:
-    if not comment:
-        return ""
-    parts = []
-    for line in comment.split("\n"):
-        line = line.strip()
-        if line.startswith("#"):
-            line = line[1:]
-        line = line.strip()
-        if line:
-            parts.append(line)
-    return " \u00b7 ".join(parts)
-
-
 def _format_rule_item(spec: CodeOwnerSpecification) -> List[str]:
     owners = ", ".join(spec.owners) if spec.owners else "(no owners)"
     headline = f"{spec.glob_pattern}  \u2192  {owners}"
-    return [headline, _format_nearest_comment(spec.nearest_comment)]
+    # the comment gets its own row, so separate its lines for readability
+    comment = format_comment(spec.nearest_comment, " \u00b7 ")
+    return [headline, comment]
 
 
 def _open_codeowners_at_line(
