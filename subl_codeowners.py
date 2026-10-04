@@ -6,15 +6,15 @@ import os
 import html
 from dataclasses import dataclass
 
-from .coercion import coerce_bool
-from .codeowners import (
+from .codeownerinsights.coercion import coerce_bool
+from .codeownerinsights.codeowners import (
     CodeOwnerSpecification,
     get_code_owners_file,
     parse_code_owners,
     get_resolved_code_owners_for_file,
     is_path_relative_to,
 )
-from .git import get_git_changed_files_compared_to_default_branch
+from .codeownerinsights.git import get_git_changed_files_compared_to_default_branch
 
 
 STATUS_BAR_KEY = "codeowner"

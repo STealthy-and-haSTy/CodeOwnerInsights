@@ -2,7 +2,7 @@ from textwrap import dedent
 import pytest
 from pathlib import Path
 from typing import Optional
-from codeowners import parse_code_owners, get_resolved_code_owners_for_file, CodeOwnerSpecification
+from codeownerinsights.codeowners import parse_code_owners, get_resolved_code_owners_for_file, CodeOwnerSpecification
 
 fake_path = Path('test/CODEOWNERS')
 

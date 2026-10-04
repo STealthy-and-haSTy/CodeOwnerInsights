@@ -4,9 +4,11 @@ This repository contains a Sublime Text plugin for identifying code owners from 
 
 ## Project Structure
 
-- `codeowners.py` - Core parsing logic (pure Python, no Sublime dependencies)
-- `git.py` - Git shell-outs (pure Python, no Sublime dependencies)
-- `coercion.py` - Value-narrowing helpers for settings and command arguments (pure Python, no Sublime dependencies)
+- `codeownerinsights/` - The publishable library (pure Python, no Sublime dependencies)
+  - `codeowners.py` - Core parsing logic
+  - `git.py` - Git shell-outs
+  - `coercion.py` - Value-narrowing helpers for settings and command arguments
+  - `__init__.py` - Re-exports the public API
 - `subl_codeowners.py` - Sublime Text plugin (the only module that imports `sublime`/`sublime_plugin`)
 - `Default.sublime-commands` - Command palette entries
 - `dependencies.json` - Vendored dependencies for Sublime's dependency manager
@@ -14,11 +16,12 @@ This repository contains a Sublime Text plugin for identifying code owners from 
 
 ## Key Design Principles
 
-- Core parsing logic in `codeowners.py` and `git.py` is framework-agnostic and independently testable
+- Core parsing logic in `codeownerinsights/codeowners.py` and `codeownerinsights/git.py` is framework-agnostic and independently testable
 - No Sublime Text APIs outside `subl_codeowners.py` - keeps business logic pure
 - Keep any logic worth asserting on out of `subl_codeowners.py` and in a pure module, so it can be unit tested. `coercion.py` exists because `subl_codeowners.py` cannot be imported outside the editor
 - All packages in the Python 3.8 plugin host share a single interpreter process, so never mutate process-global state. In particular `git.py` must not call `os.chdir()`: it would change the working directory for every other package for the rest of the session. Pass `cwd=` to `subprocess.run()` instead.
 - Uses `wcmatch` for GitHub-compatible glob pattern matching
+- The library is published to PyPI as `codeownerinsights`, so the package directory is the source of truth. The plugin imports from it via relative imports (`from .codeownerinsights.codeowners import ...`).
 
 ## Runtime Environment
 
@@ -45,9 +48,9 @@ There is no formatter config committed. The editor's ruff integration (0.12.x) r
 
 Tests are in the `test/` directory and use pytest. Everything except `subl_codeowners.py` is covered, and nothing requires a running Sublime Text. `[tool.pytest.ini_options]` in `pyproject.toml` puts the repo root on `sys.path` and defaults `testpaths` to `test/`, since the modules under test are not installed as a package.
 
-- `test_parsing.py`, `test_matching.py`, `test_utils.py` - `codeowners.py`
-- `test_git.py` - `git.py`. Builds real temporary repositories in `tmp_path` (including a bare `origin` so `origin/HEAD` resolves) and shells out to git. No network access, and no test may mutate the process working directory
-- `test_coercion.py` - `coercion.py`. Covers the spellings a user can write in a settings file or keybinding, including the malformed ones that must fall back to the default rather than flip the setting
+- `test_parsing.py`, `test_matching.py`, `test_utils.py` - `codeownerinsights/codeowners.py`
+- `test_git.py` - `codeownerinsights/git.py`. Builds real temporary repositories in `tmp_path` (including a bare `origin` so `origin/HEAD` resolves) and shells out to git. No network access, and no test may mutate the process working directory
+- `test_coercion.py` - `codeownerinsights/coercion.py`. Covers the spellings a user can write in a settings file or keybinding, including the malformed ones that must fall back to the default rather than flip the setting
 - `subl_codeowners.py` is untested, as importing it requires the `sublime` module
 
 ## Dependencies
@@ -75,10 +78,12 @@ The plugin searches for CODEOWNERS files in this order:
 - `git diff --name-only` prints paths relative to the folder git was run in, not to the repo root. Join them with `folder_path` before handing them to `get_code_owner()`, which makes them relative to the folder again via `os.path.relpath()`
 - `get_default_branch()` returns an empty string rather than `None` when git fails, because the `| cut` pipeline makes the exit code come from `cut`. Callers test the result for truthiness
 - Renamed files are reported under their new path only, and `--diff-filter=ACMR` drops deletions
+- All git helpers accept an optional `git` parameter (default `"git"`) so a git wrapper can be substituted by replacing the leading command token
 
 ## Architecture
 
-The separation between `codeowners.py`/`git.py`/`coercion.py` and `subl_codeowners.py` allows:
+The separation between `codeownerinsights/` and `subl_codeowners.py` allows:
 - Independent testing of core logic
 - Framework-agnostic code that can be reused
 - Clear boundary between business logic and UI framework
+- The library is published to PyPI as `codeownerinsights` for reuse outside the editor

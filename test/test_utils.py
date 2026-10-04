@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from codeowners import is_path_relative_to
+from codeownerinsights.codeowners import is_path_relative_to
 
 @pytest.mark.parametrize(
     ('path', 'possible_ancestor_folder', 'expected_result'),

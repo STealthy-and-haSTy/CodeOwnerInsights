@@ -1,5 +1,5 @@
 import pytest
-from coercion import coerce_bool
+from codeownerinsights.coercion import coerce_bool
 
 # Settings are user-editable JSON, so the values arriving here are whatever the
 # user actually typed. The cases below are ordered from the values we expect to

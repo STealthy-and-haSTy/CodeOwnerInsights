@@ -6,6 +6,8 @@ from subprocess import run, PIPE
 import time
 from dataclasses import dataclass
 
+DEFAULT_GIT = "git"
+
 
 @dataclass
 class ShellExecutionSummary:
@@ -13,26 +15,36 @@ class ShellExecutionSummary:
     time_taken: float
 
 
+def _git_cmd(git: str, *args: str) -> List[str]:
+    """Build a git command list, substituting the configured git binary.
+
+    Commands are assembled as ``["git", ...]`` so that the binary can be swapped
+    out (e.g. for a git wrapper that injects credentials) by replacing the
+    leading token.
+    """
+    return [git, *args]
+
+
 def get_git_changed_files_compared_to_branch(
-    folder_path: Path, base_branch_name: str, filter: Optional[str] = None
+    folder_path: Path, base_branch_name: str, filter: Optional[str] = None, git: str = DEFAULT_GIT
 ) -> Iterable[Path]:
     """filter can be like --relative=source/ or '*.php' etc."""
-    current_branch = get_current_branch(folder_path)
+    current_branch = get_current_branch(folder_path, git=git)
     if not current_branch:
         return []
     # find the common ancestor incase local or remote base branch is more up to date than the feature branch
     merge_base = exec_command(
-        folder_path, ["git", "merge-base", base_branch_name, current_branch]
+        folder_path, _git_cmd(git, "merge-base", base_branch_name, current_branch)
     )
     if not merge_base or merge_base.process.returncode != 0:
         return []
-    diff_cmd = [
-        "git",
+    diff_cmd = _git_cmd(
+        git,
         "diff",
         merge_base.process.stdout.rstrip(),
         "--name-only",
         "--diff-filter=ACMR",
-    ]
+    )
     if filter:
         diff_cmd.append(filter)
     files = exec_command(folder_path, diff_cmd)
@@ -44,22 +56,22 @@ def get_git_changed_files_compared_to_branch(
 
 
 def get_git_changed_files_compared_to_default_branch(
-    folder_path: Path, filter: Optional[str] = None, fetch_remote: bool = True
+    folder_path: Path, filter: Optional[str] = None, fetch_remote: bool = True, git: str = DEFAULT_GIT
 ) -> Iterable[Path]:
     """filter can be like --relative=source/ or '*.php' etc."""
     # Compare against the remote-tracking ref for the default branch (e.g.
     # origin/main), which is the real baseline for a PR. The local default
     # branch is frequently stale, and comparing against it would drag the merge
     # base back and surface unrelated default-branch commits.
-    base_branch_name = get_default_branch_remote_ref(folder_path, fetch_remote)
+    base_branch_name = get_default_branch_remote_ref(folder_path, fetch_remote, git=git)
     if not base_branch_name:
         return []
-    return get_git_changed_files_compared_to_branch(folder_path, base_branch_name, filter)
+    return get_git_changed_files_compared_to_branch(folder_path, base_branch_name, filter, git=git)
 
 
-def get_default_branch(folder_path: Path) -> Optional[str]:
+def get_default_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:
     result = exec_command(
-        folder_path, ["git", "rev-parse", "--abbrev-ref", "origin/HEAD"]
+        folder_path, _git_cmd(git, "rev-parse", "--abbrev-ref", "origin/HEAD")
     )
     if result and result.process.returncode == 0:
         # origin/HEAD points to something like 'origin/main' - extract the branch name
@@ -71,7 +83,7 @@ def get_default_branch(folder_path: Path) -> Optional[str]:
 
 
 def get_default_branch_remote_ref(
-    folder_path: Path, fetch_remote: bool = True
+    folder_path: Path, fetch_remote: bool = True, git: str = DEFAULT_GIT
 ) -> Optional[str]:
     """Return the remote-tracking ref for the default branch, e.g. ``origin/main``.
 
@@ -88,7 +100,7 @@ def get_default_branch_remote_ref(
     local ref is used as-is, which is fast but can be stale if the remote has
     moved since the last fetch.
     """
-    branch = get_default_branch(folder_path)
+    branch = get_default_branch(folder_path, git=git)
     if not branch:
         return None
     if fetch_remote:
@@ -98,35 +110,35 @@ def get_default_branch_remote_ref(
         # surface unrelated default-branch commits. Failures are ignored: the
         # verify below falls back to the local branch when the remote ref is
         # unavailable.
-        fetch_default_branch(folder_path, branch)
+        fetch_default_branch(folder_path, branch, git=git)
     remote_ref = f"origin/{branch}"
-    result = exec_command(folder_path, ["git", "rev-parse", "--verify", remote_ref])
+    result = exec_command(folder_path, _git_cmd(git, "rev-parse", "--verify", remote_ref))
     if result and result.process.returncode == 0:
         return remote_ref
     return branch
 
 
-def fetch_default_branch(folder_path: Path, branch: str) -> None:
+def fetch_default_branch(folder_path: Path, branch: str, git: str = DEFAULT_GIT) -> None:
     """Best-effort refresh of the remote-tracking ref for ``branch``.
 
     Network or permission failures are intentionally ignored: the caller falls
     back to the local ref when the fetch does not succeed.
     """
     result = exec_command(
-        folder_path, ["git", "fetch", "origin", branch]
+        folder_path, _git_cmd(git, "fetch", "origin", branch)
     )
     if not result or result.process.returncode != 0:
         return
 
 
-def get_current_branch(folder_path: Path) -> Optional[str]:
-    result = exec_command(folder_path, ["git", "rev-parse", "--abbrev-ref", "HEAD"])
+def get_current_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:
+    result = exec_command(folder_path, _git_cmd(git, "rev-parse", "--abbrev-ref", "HEAD"))
     if result and result.process.returncode == 0:
         return result.process.stdout.rstrip()
     return None
 
 
-def exec_command(folder_path: Path, cmd: List[str]) -> ShellExecutionSummary:
+def exec_command(folder_path: Path, cmd: List[str], git: str = DEFAULT_GIT) -> ShellExecutionSummary:
     return execute_with_stdin(cmd, False, "", folder_path)
 
 

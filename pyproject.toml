@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "codeownerinsights"
 version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
+description = "Framework-agnostic helpers for parsing GitHub's CODEOWNERS file and resolving owners, with optional git integration."
+authors = ["STealthy and haSTy <you@example.com>"]
 license = "MIT"
 readme = "README.md"
+packages = [{ include = "codeownerinsights" }]
 
 [tool.poetry.dependencies]
 python = "^3.8"

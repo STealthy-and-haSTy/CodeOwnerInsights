@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from git import (
+from codeownerinsights.git import (
     exec_command,
     get_current_branch,
     get_default_branch,
