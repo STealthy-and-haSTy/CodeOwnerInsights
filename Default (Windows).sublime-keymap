@@ -1,0 +1,3 @@
+[
+  { "keys": ["ctrl+shift+o"], "command": "show_code_owner_rules" },
+]

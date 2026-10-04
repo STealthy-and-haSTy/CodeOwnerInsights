@@ -10,6 +10,7 @@ from .codeownerinsights.coercion import coerce_bool
 from .codeownerinsights.codeowners import (
     CodeOwnerSpecification,
     get_code_owners_file,
+    get_matching_code_owner_specifications_for_file,
     parse_code_owners,
     get_resolved_code_owners_for_file,
     is_path_relative_to,
@@ -254,6 +255,152 @@ class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
     def is_enabled(self) -> bool:
         codeowner = get_code_owner_for_view(self.view)
         return bool(codeowner)
+
+
+def get_matching_code_owner_specifications_for_view(
+    view: sublime.View,
+) -> List[CodeOwnerSpecification]:
+    """Every CODEOWNERS rule that matches the file in this view, in file order.
+
+    Unlike :func:`get_code_owner_for_view`, which returns only the resolved
+    (last-matching) owner, this returns all of the matching specifications so a
+    user can see which earlier rule is being overridden by a later one.
+    """
+    relevant_project_folders = get_project_folders_for_view(view)
+    if not relevant_project_folders:
+        return []
+
+    file_path = get_file_path_of_view(view)
+    if file_path is None:
+        return []
+
+    window = view.window()
+    if window is None:
+        return []
+
+    matches: List[CodeOwnerSpecification] = []
+    for folder_path in relevant_project_folders:
+        specifications = get_code_owner_specifications_for_folder(window, folder_path)
+        if not specifications:
+            continue
+        matches.extend(
+            get_matching_code_owner_specifications_for_file(
+                specifications, Path(os.path.relpath(file_path, folder_path))
+            )
+        )
+    return matches
+
+
+def _format_nearest_comment(comment: Optional[str]) -> str:
+    if not comment:
+        return ""
+    parts = []
+    for line in comment.split("\n"):
+        line = line.strip()
+        if line.startswith("#"):
+            line = line[1:]
+        line = line.strip()
+        if line:
+            parts.append(line)
+    return " \u00b7 ".join(parts)
+
+
+def _format_rule_item(spec: CodeOwnerSpecification) -> List[str]:
+    owners = ", ".join(spec.owners) if spec.owners else "(no owners)"
+    headline = f"{spec.glob_pattern}  \u2192  {owners}"
+    return [headline, _format_nearest_comment(spec.nearest_comment)]
+
+
+def _select_line(view: sublime.View, line_number: int) -> None:
+    # line_number is 1-indexed, as stored on CodeOwnerSpecification
+    point = view.text_point(line_number - 1, 0)
+    view.sel().clear()
+    view.sel().add(sublime.Region(point, view.line(point).b))
+    view.show(point)
+
+
+def _open_codeowners_at_line(
+    window: sublime.Window, spec: CodeOwnerSpecification, *, preview: bool
+) -> Optional[sublime.View]:
+    window.run_command(
+        "open_file",
+        {
+            "file": f"{spec.codeowners_file_path}:{spec.line_number}",
+            "encoded_position": True,
+        },
+    )
+    view = window.active_view()
+    if view is None:
+        return None
+    if preview:
+        view.set_scratch(True)
+    _select_line(view, spec.line_number)
+    return view
+
+
+class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
+    """Show every CODEOWNERS rule matching the current file in a quick panel.
+
+    Lists all of the rules that hit the file, in the order they appear in
+    CODEOWNERS, with the nearest comment shown beneath each pattern. This is
+    for understanding whether an intended rule matches and which later rule
+    overrides it -- the resolved owner (the last matching rule) is pre-selected.
+    The preview opens the matching line in CODEOWNERS; confirming a selection
+    leaves the editor on that line, and Esc cancels any preview navigation.
+    """
+
+    def run(self, edit) -> None:
+        matches = get_matching_code_owner_specifications_for_view(self.view)
+        if not matches:
+            self.view.window().status_message(
+                "CodeOwnerInsights: no CODEOWNERS rule matches this file"
+            )
+            return
+
+        self._matches = matches
+        self._preview_view: Optional[sublime.View] = None
+        window = self.view.window()
+        window.show_quick_panel(
+            [_format_rule_item(spec) for spec in matches],
+            self._on_select,
+            on_highlight=self._on_highlight,
+            selected_index=len(matches) - 1,
+            placeholder="All CODEOWNERS rules matching this file",
+        )
+
+    def is_enabled(self) -> bool:
+        return bool(get_matching_code_owner_specifications_for_view(self.view))
+
+    def _on_highlight(self, index: int) -> None:
+        if index < 0:
+            return
+        self._close_preview()
+        self._preview_view = _open_codeowners_at_line(
+            self.view.window(), self._matches[index], preview=True
+        )
+
+    def _on_select(self, index: int) -> None:
+        if index < 0:
+            # Esc or cancel: undo any preview navigation and return to the
+            # view the user had open before the panel was shown
+            self._close_preview()
+            return
+        self._close_preview()
+        _open_codeowners_at_line(
+            self.view.window(), self._matches[index], preview=False
+        )
+
+    def _close_preview(self) -> None:
+        if self._preview_view is None:
+            return
+        window = self._preview_view.window()
+        if window is not None:
+            active = window.active_view()
+            # only close the preview when it is the active view, so a stray
+            # panel state can never destroy the user's current tab
+            if active is not None and active.id() == self._preview_view.id():
+                window.run_command("close_file")
+        self._preview_view = None
 
 
 class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
