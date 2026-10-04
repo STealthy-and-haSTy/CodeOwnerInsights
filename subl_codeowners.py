@@ -311,46 +311,24 @@ def _format_rule_item(spec: CodeOwnerSpecification) -> List[str]:
     return [headline, _format_nearest_comment(spec.nearest_comment)]
 
 
-def _select_line(view: sublime.View, line_number: int) -> None:
-    # line_number is 1-indexed, as stored on CodeOwnerSpecification
-    point = view.text_point(line_number - 1, 0)
-    view.sel().clear()
-    view.sel().add(sublime.Region(point, view.line(point).b))
-    view.show(point)
-
-
 def _open_codeowners_at_line(
-    window: sublime.Window,
-    spec: CodeOwnerSpecification,
-    *,
-    preview: bool,
-    original_view: Optional[sublime.View] = None,
-) -> Optional[sublime.View]:
-    # A transient view is not shown in the tab bar and closes automatically when
-    # focus leaves it, which is exactly the preview lifecycle we want: no need
-    # to mark it scratch, and no risk of turning the user's own file into an
-    # untitled one. If the CODEOWNERS file was already open, `open_file`
-    # re-focuses that same view rather than opening a new tab -- in that case
-    # it is the user's own file, so pass transient=False and just move the
-    # selection in place.
-    already_open = (
-        original_view is not None
-        and window.active_view() is not None
-        and window.active_view().id() == original_view.id()
-    )
+    window: sublime.Window, spec: CodeOwnerSpecification, *, preview: bool
+) -> None:
+    # `transient` opens the file as a preview sheet: no tab, and Sublime drops
+    # it when the next preview takes its place. The flag only applies to a
+    # newly created sheet, so a CODEOWNERS file the user already has open is
+    # simply focused and keeps its tab -- it never becomes a preview and never
+    # needs to be marked scratch. The `:line` suffix is all the positioning
+    # that is needed: Sublime places the caret itself, and does so after the
+    # file has finished loading.
     window.run_command(
         "open_file",
         {
             "file": f"{spec.codeowners_file_path}:{spec.line_number}",
             "encoded_position": True,
-            "transient": preview and not already_open,
+            "transient": preview,
         },
     )
-    view = window.active_view()
-    if view is None:
-        return None
-    _select_line(view, spec.line_number)
-    return view
 
 
 class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
@@ -365,21 +343,16 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
     """
 
     def run(self, edit) -> None:
+        window = self.view.window()
         matches = get_matching_code_owner_specifications_for_view(self.view)
         if not matches:
-            self.view.window().status_message(
+            window.status_message(
                 "CodeOwnerInsights: no CODEOWNERS rule matches this file"
             )
             return
 
-        # Remember the view that had focus when the panel was opened. If the
-        # CODEOWNERS file was already open, `open_file` re-focuses that same
-        # view rather than opening a new tab -- in that case the "preview" is
-        # the user's own file and must not be marked scratch or closed.
-        self._original_view = self.view
         self._matches = matches
         self._preview_view: Optional[sublime.View] = None
-        window = self.view.window()
         window.show_quick_panel(
             [_format_rule_item(spec) for spec in matches],
             self._on_select,
@@ -394,13 +367,13 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
     def _on_highlight(self, index: int) -> None:
         if index < 0:
             return
+        # Matching rules can come from more than one project folder, so
+        # consecutive previews are not necessarily the same file: drop the
+        # previous preview rather than leave it behind in the group.
         self._close_preview()
-        self._preview_view = _open_codeowners_at_line(
-            self.view.window(),
-            self._matches[index],
-            preview=True,
-            original_view=self._original_view,
-        )
+        window = self.view.window()
+        _open_codeowners_at_line(window, self._matches[index], preview=True)
+        self._preview_view = window.active_view()
 
     def _on_select(self, index: int) -> None:
         if index < 0:
@@ -408,12 +381,10 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
             # view the user had open before the panel was shown
             self._close_preview()
             return
-        self._close_preview()
+        # Opening the same file without `transient` promotes the preview sheet
+        # in place, so confirming a rule leaves a normal tab on that line.
         _open_codeowners_at_line(
-            self.view.window(),
-            self._matches[index],
-            preview=False,
-            original_view=self._original_view,
+            self.view.window(), self._matches[index], preview=False
         )
 
     def _close_preview(self) -> None:
@@ -421,17 +392,19 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
         self._preview_view = None
         if preview is None:
             return
-        # Never touch the user's own view -- if the CODEOWNERS file was already
-        # open, `open_file` re-focused it and it is not a preview we created.
-        if preview.id() == self._original_view.id():
+        # Only a sheet that is still transient is one we opened: a CODEOWNERS
+        # file the user already had open is a regular sheet, and so is a preview
+        # they have since typed into, since editing gives a preview a tab.
+        sheet = preview.sheet()
+        if sheet is None or not sheet.is_transient():
             return
-        window = preview.window()
-        if window is not None:
-            active = window.active_view()
-            # only close the preview when it is the active view, so a stray
-            # panel state can never destroy the user's current tab
-            if active is not None and active.id() == preview.id():
-                window.run_command("close_file")
+        # close_file closes whatever is active, so only close when the preview
+        # is what is showing: a stray panel state must never destroy the user's
+        # current tab.
+        window = self.view.window()
+        active = window.active_view()
+        if active is not None and active.id() == preview.id():
+            window.run_command("close_file")
 
 
 class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
