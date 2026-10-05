@@ -1,15 +1,27 @@
-[tool.poetry]
+[project]
 name = "codeownerinsights"
 version = "0.1.0"
-description = "Framework-agnostic helpers for parsing GitHub's CODEOWNERS file and resolving owners, with optional git integration."
-authors = ["STealthy and haSTy <you@example.com>"]
+description = "Parse GitHub's CODEOWNERS file and resolve code owners for a path, with optional git integration."
+authors = [{ name = "Keith Hall", email = "keith.hall@available.systems" }]
 license = "MIT"
-readme = "README.md"
-packages = [{ include = "codeownerinsights" }]
+readme = "README-pypi.md"
+requires-python = ">=3.8,<4.0"
+keywords = ["codeowners", "git", "github", "code-review", "ownership"]
+dependencies = ["wcmatch (>=10.0,<11.0)"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Version Control :: Git",
+]
 
-[tool.poetry.dependencies]
-python = "^3.8"
-wcmatch = "^10.0"
+[project.urls]
+Homepage = "https://github.com/STealthy-and-haSTy/CodeOwnerInsights"
+Repository = "https://github.com/STealthy-and-haSTy/CodeOwnerInsights"
+Issues = "https://github.com/STealthy-and-haSTy/CodeOwnerInsights/issues"
+
+[tool.poetry]
+packages = [{ include = "codeownerinsights" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
