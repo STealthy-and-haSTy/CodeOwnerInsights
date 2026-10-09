@@ -6,8 +6,15 @@ from wcmatch.glob import globmatch, GLOBSTAR
 
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
+# Characters that wcmatch treats as glob syntax but GitHub's CODEOWNERS docs
+# say do not work. They must be matched literally, so the pattern is escaped
+# before being handed to wcmatch. ``*``, ``?`` and ``**`` are left alone --
+# those are the wildcards CODEOWNERS does support.
+_LITERAL_GLOB_CHARS = str.maketrans({"[": r"\[", "]": r"\]"})
+
 
 def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
+    glob_pattern = glob_pattern.translate(_LITERAL_GLOB_CHARS)
     patterns_to_try = list()
     if glob_pattern.endswith('/'):
         # a trailing slash matches the directory and its contents

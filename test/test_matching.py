@@ -164,6 +164,40 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
             '/docs/',
             False,
         ),
+        # GitHub's CODEOWNERS docs state that "[ ] to define a character range
+        # doesn't work" -- brackets are matched literally, so [abc].txt only
+        # matches a file literally named [abc].txt.
+        (
+            'a.txt',
+            '[abc].txt',
+            False,
+        ),
+        (
+            'x.txt',
+            '[abc].txt',
+            False,
+        ),
+        (
+            '[abc].txt',
+            '[abc].txt',
+            True,
+        ),
+        # The supported wildcards are unaffected by the literal escaping.
+        (
+            'path/to/file.js',
+            '*.js',
+            True,
+        ),
+        (
+            'docs/sub/x.md',
+            'docs/*',
+            False,
+        ),
+        (
+            'build/logs/test.log',
+            '**/logs',
+            True,
+        ),
     ]
 )
 def test_matching(path: str, glob: str, expected_result: bool) -> None:

@@ -92,11 +92,12 @@ Two rules that follow GitHub's semantics rather than `git check-ignore`:
   subdirectories.
 
 These agree with `git check-ignore`, which is the part `test/test_matching.py`
-checks against real `git check-ignore` output. The two diverge elsewhere:
-`git check-ignore` additionally supports `!` to negate a pattern, `\` to escape
-a leading `#`, and `[ ]` character classes, all of which GitHub's `CODEOWNERS`
-docs list as unsupported -- so this library does not handle them, and the test
-harness deliberately does not exercise those cases.
+pins against hardcoded cases (the harness is pure pytest, it never shells out
+to git). The two diverge elsewhere: `git check-ignore` additionally supports
+`!` to negate a pattern, `\` to escape a leading `#`, and `[ ]` character
+classes, all of which GitHub's `CODEOWNERS` docs list as unsupported. Brackets
+are therefore escaped before matching so they're treated literally -- the
+harness does exercise that case.
 
 ## git.py Notes
 
