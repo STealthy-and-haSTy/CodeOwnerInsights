@@ -80,6 +80,90 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
             '**/logs',
             False,
         ),
+        # A leading slash anchors a pattern to the repository root, but the paths
+        # the plugin matches against are relative to the root and carry no
+        # leading slash -- so the slash-anchored form has to match relative
+        # paths too. These are the cases GitHub's own CODEOWNERS docs cite.
+        (
+            'docs/readme.md',
+            '/docs/',
+            True,
+        ),
+        (
+            'docs/sub/x.md',
+            '/docs/',
+            True,
+        ),
+        (
+            'build/logs/foo/bar.log',
+            '/build/logs/',
+            True,
+        ),
+        (
+            'baz/build/logs/foo.log',
+            '/build/logs/',
+            False,
+        ),
+        (
+            'apps/foo.js',
+            '/apps/',
+            True,
+        ),
+        (
+            'apps/github',
+            '/apps/github',
+            True,
+        ),
+        (
+            'apps/github',
+            '/apps/',
+            True,
+        ),
+        (
+            'apps/github',
+            '/apps/github',
+            True,
+        ),
+        (
+            'docs/build-app/troubleshooting.md',
+            'docs/*',
+            False,
+        ),
+        # An unslashed directory pattern matches the directory wherever it sits
+        # in the tree, not only at the root -- the same rule git's check-ignore
+        # applies. The previous implementation only matched at the root.
+        (
+            'src/apps/foo.js',
+            'apps/',
+            True,
+        ),
+        (
+            'deeply/nested/apps/foo.js',
+            'apps/',
+            True,
+        ),
+        (
+            'sub/docs/readme.md',
+            'docs/',
+            True,
+        ),
+        (
+            'other/docs/readme.md',
+            'docs/',
+            True,
+        ),
+        # A leading slash anchors to the root, so the same pattern does not
+        # match the same directory nested elsewhere.
+        (
+            'src/apps/foo.js',
+            '/apps/',
+            False,
+        ),
+        (
+            'sub/docs/readme.md',
+            '/docs/',
+            False,
+        ),
     ]
 )
 def test_matching(path: str, glob: str, expected_result: bool) -> None:

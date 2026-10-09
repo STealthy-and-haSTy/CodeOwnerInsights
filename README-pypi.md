@@ -62,9 +62,10 @@ spec.codeowners_file_path
 `CODEOWNERS` rules literally: a leading `/` anchors the pattern to the repository
 root, and a trailing `/` matches the directory and its contents. This is
 deliberately *not* the `git check-ignore` convention where a leading slash means
-"do not match". Note the asymmetry this creates in practice — with a
-`CODEOWNERS` at the repository root, `docs/` matches `docs/readme.md`, while
-`/web/` does not match `web/index.js`.
+"do not match". The asymmetry that matters in practice is between anchored and
+unslashed directory patterns — with a `CODEOWNERS` at the repository root,
+`docs/` matches `docs/readme.md` *and* `src/docs/readme.md`, while `/docs/` matches
+`docs/readme.md` but not `src/docs/readme.md`.
 
 **Locating the file.** `get_code_owners_file(root)` looks in the three places
 GitHub searches, in GitHub's order, and returns the first hit:

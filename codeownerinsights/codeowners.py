@@ -10,7 +10,12 @@ from wcmatch.glob import globmatch, GLOBSTAR
 def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
     patterns_to_try = list()
     if glob_pattern.endswith('/'):
+        # a trailing slash matches the directory and its contents
         patterns_to_try.append(glob_pattern + '**')
+        if not glob_pattern.startswith('/'):
+            # git treats an unslashed directory pattern as matching the
+            # directory wherever it sits in the tree, not only at the root
+            patterns_to_try.append('**/' + glob_pattern + '**')
     elif glob_pattern == '*':
         return True
     elif glob_pattern.startswith('*.') and '/' not in glob_pattern:
@@ -26,6 +31,15 @@ def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
             for pattern in list(patterns_to_try):
                 patterns_to_try.append('**/' + pattern)
 
+    # A leading slash anchors a pattern to the repository root, but the paths
+    # we match against are relative to the root and carry no leading slash, so
+    # wcmatch would treat the slash as anchoring to the start of the string and
+    # reject everything. Try the pattern both ways: the slash-anchored form
+    # guards against a path that happens to start with one, the unslashed form
+    # is what actually matches relative paths.
+    if glob_pattern.startswith('/'):
+        for pattern in list(patterns_to_try):
+            patterns_to_try.append(pattern.lstrip('/'))
 
     return globmatch(filename=str(path), patterns=patterns_to_try, flags=GLOBSTAR)
 

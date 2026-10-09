@@ -71,8 +71,28 @@ The plugin searches for CODEOWNERS files in this order:
 
 - `CodeOwnerSpecification` - Data class representing a parsed CODEOWNERS line
 - `parse_code_owners()` - Parses CODEOWNERS content into specifications
+- `get_matching_code_owner_specifications_for_file()` - Finds every CODEOWNERS rule that matches a file path
 - `get_resolved_code_owners_for_file()` - Finds the most specific matching owner for a file path
 - `is_path_relative_to()` - Guards against applying a folder's CODEOWNERS to files outside it
+
+## Pattern matching (`does_codeowner_glob_match`)
+
+Paths are matched relative to the repository root and carry no leading slash, so
+a leading `/` on a pattern is stripped before matching as well as kept — the
+slashed form anchors to the root, the unslashed form is what actually matches
+relative paths. A trailing `/` matches the directory and its contents.
+
+Two rules that follow GitHub's semantics rather than `git check-ignore`:
+
+- An unslashed directory pattern matches the directory wherever it sits in the
+  tree, not only at the root. `apps/` matches `apps/foo.js` *and*
+  `src/apps/foo.js`. A leading `/` anchors to the root, so `/apps/` matches
+  `apps/foo.js` but not `src/apps/foo.js`.
+- `docs/*` matches one level only; `docs/` matches the directory and its
+  subdirectories.
+
+`test/test_matching.py` exercises this against real `git check-ignore` output,
+so if a change here disagrees with it, the tests will fail.
 
 ## git.py Notes
 
