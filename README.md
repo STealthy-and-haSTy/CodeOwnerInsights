@@ -77,8 +77,12 @@ and see exactly which later line overrides it.
   by replacing the leading command token.
 - **GitHub's documented semantics, not git's.** Patterns follow GitHub's
   `CODEOWNERS` rules literally — a leading `/` anchors to the repo root and a
-  trailing `/` matches the directory and its contents — rather than the
-  `git check-ignore` convention where a leading slash means "don't match".
+  trailing `/` matches the directory and its contents. This is deliberately not
+  the `git check-ignore` convention where a leading slash means "don't match".
+  Where the two diverge, we follow GitHub: `git check-ignore` additionally
+  supports `!` to negate a pattern, `\` to escape a leading `#`, and `[ ]`
+  character classes, all of which GitHub's `CODEOWNERS` docs list as
+  unsupported. They do agree on directory and anchoring rules.
 
 ## Library usage
 

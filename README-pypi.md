@@ -67,6 +67,12 @@ unslashed directory patterns — with a `CODEOWNERS` at the repository root,
 `docs/` matches `docs/readme.md` *and* `src/docs/readme.md`, while `/docs/` matches
 `docs/readme.md` but not `src/docs/readme.md`.
 
+Where the two differ, we follow GitHub. `git check-ignore` additionally supports
+`!` to negate a pattern, `\` to escape a leading `#`, and `[ ]` character classes;
+GitHub's `CODEOWNERS` docs list all three as unsupported, and this library does not
+handle them. The two do agree on directory and anchoring rules, which is the part
+`test/test_matching.py` checks against real `git check-ignore` output.
+
 **Locating the file.** `get_code_owners_file(root)` looks in the three places
 GitHub searches, in GitHub's order, and returns the first hit:
 

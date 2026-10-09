@@ -91,8 +91,12 @@ Two rules that follow GitHub's semantics rather than `git check-ignore`:
 - `docs/*` matches one level only; `docs/` matches the directory and its
   subdirectories.
 
-`test/test_matching.py` exercises this against real `git check-ignore` output,
-so if a change here disagrees with it, the tests will fail.
+These agree with `git check-ignore`, which is the part `test/test_matching.py`
+checks against real `git check-ignore` output. The two diverge elsewhere:
+`git check-ignore` additionally supports `!` to negate a pattern, `\` to escape
+a leading `#`, and `[ ]` character classes, all of which GitHub's `CODEOWNERS`
+docs list as unsupported -- so this library does not handle them, and the test
+harness deliberately does not exercise those cases.
 
 ## git.py Notes
 
