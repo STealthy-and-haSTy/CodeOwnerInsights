@@ -5,7 +5,7 @@ description = "Parse GitHub's CODEOWNERS file and resolve code owners for a path
 authors = [{ name = "Keith Hall", email = "keith.hall@available.systems" }]
 license = "MIT"
 readme = "README-pypi.md"
-requires-python = ">=3.8,<4.0"
+requires-python = ">=3.11,<4.0"
 keywords = ["codeowners", "git", "github", "code-review", "ownership"]
 dependencies = ["wcmatch (>=10.0,<11.0)"]
 classifiers = [
