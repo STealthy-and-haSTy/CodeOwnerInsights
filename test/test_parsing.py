@@ -2,7 +2,11 @@ from textwrap import dedent
 import pytest
 from pathlib import Path
 from typing import Optional
-from codeownerinsights.codeowners import parse_code_owners, get_resolved_code_owners_for_file, CodeOwnerSpecification
+from codeownerinsights.codeowners import (
+    parse_code_owners,
+    get_resolved_code_owners_for_file,
+    CodeOwnerSpecification,
+)
 
 fake_path = Path('test/CODEOWNERS')
 
@@ -90,9 +94,9 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/build/logs/bar.log',
             CodeOwnerSpecification(
-                '# In this example, @octocat owns any file in a `/logs` directory such as\n' +
-                '# `/build/logs`, `/scripts/logs`, and `/deeply/nested/logs`. Any changes\n' +
-                '# in a `/logs` directory will require approval from @octocat.',
+                '# In this example, @octocat owns any file in a `/logs` directory such as\n'
+                + '# `/build/logs`, `/scripts/logs`, and `/deeply/nested/logs`. Any changes\n'
+                + '# in a `/logs` directory will require approval from @octocat.',
                 '**/logs',
                 ['@octocat'],
                 53,
@@ -102,9 +106,9 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/build/logs/nested/bar.log',
             CodeOwnerSpecification(
-                '# In this example, @doctocat owns any files in the build/logs\n' +
-                '# directory at the root of the repository and any of its\n' +
-                '# subdirectories.',
+                '# In this example, @doctocat owns any files in the build/logs\n'
+                + '# directory at the root of the repository and any of its\n'
+                + '# subdirectories.',
                 '/build/logs/',
                 ['@doctocat'],
                 30,
@@ -114,11 +118,11 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/apps/github/some.file',
             CodeOwnerSpecification(
-                '# In this example, @octocat owns any file in the `/apps`\n' +
-                '# directory in the root of your repository except for the `/apps/github`\n' +
-                '# subdirectory, as its owners are left empty. Without an owner, changes\n' +
-                '# to `apps/github` can be made with the approval of any user who has\n' +
-                '# write access to the repository.',
+                '# In this example, @octocat owns any file in the `/apps`\n'
+                + '# directory in the root of your repository except for the `/apps/github`\n'
+                + '# subdirectory, as its owners are left empty. Without an owner, changes\n'
+                + '# to `apps/github` can be made with the approval of any user who has\n'
+                + '# write access to the repository.',
                 '/apps/github',
                 [],
                 61,
@@ -128,10 +132,10 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/some/path/to/file.js',
             CodeOwnerSpecification(
-                '# Order is important; the last matching pattern takes the most\n' +
-                '# precedence. When someone opens a pull request that only\n' +
-                '# modifies JS files, only @js-owner and not the global\n' +
-                '# owner(s) will be requested for a review.',
+                '# Order is important; the last matching pattern takes the most\n'
+                + '# precedence. When someone opens a pull request that only\n'
+                + '# modifies JS files, only @js-owner and not the global\n'
+                + '# owner(s) will be requested for a review.',
                 '*.js',
                 ['@js-owner'],
                 14,
@@ -141,10 +145,10 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/some/path/to/file.test',
             CodeOwnerSpecification(
-                '# These owners will be the default owners for everything in\n' +
-                '# the repo. Unless a later match takes precedence,\n' +
-                '# @global-owner1 and @global-owner2 will be requested for\n' +
-                '# review when someone opens a pull request.',
+                '# These owners will be the default owners for everything in\n'
+                + '# the repo. Unless a later match takes precedence,\n'
+                + '# @global-owner1 and @global-owner2 will be requested for\n'
+                + '# review when someone opens a pull request.',
                 '*',
                 ['@global-owner1', '@global-owner2'],
                 8,
@@ -154,9 +158,9 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/docs/a/b',
             CodeOwnerSpecification(
-                '# In this example, @doctocat owns any file in the `/docs`\n' +
-                '# directory in the root of your repository and any of its\n' +
-                '# subdirectories.',
+                '# In this example, @doctocat owns any file in the `/docs`\n'
+                + '# directory in the root of your repository and any of its\n'
+                + '# subdirectories.',
                 '/docs/',
                 ['@doctocat'],
                 44,
@@ -166,9 +170,9 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             'a/docs/getting-started.md',
             CodeOwnerSpecification(
-                '# The `docs/*` pattern will match files like\n' +
-                '# `docs/getting-started.md` but not further nested files like\n' +
-                '# `docs/build-app/troubleshooting.md`.',
+                '# The `docs/*` pattern will match files like\n'
+                + '# `docs/getting-started.md` but not further nested files like\n'
+                + '# `docs/build-app/troubleshooting.md`.',
                 'docs/*',
                 ['docs@example.com'],
                 35,
@@ -178,13 +182,13 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             'a/docs/build-app/troubleshooting.md',
             CodeOwnerSpecification(
-                '# These owners will be the default owners for everything in\n' +
-                '# the repo. Unless a later match takes precedence,\n' +
-                '# @global-owner1 and @global-owner2 will be requested for\n' +
-                '# review when someone opens a pull request.',
+                '# These owners will be the default owners for everything in\n'
+                + '# the repo. Unless a later match takes precedence,\n'
+                + '# @global-owner1 and @global-owner2 will be requested for\n'
+                + '# review when someone opens a pull request.',
                 '*',
                 ['@global-owner1', '@global-owner2'],
-                8, # NOT line 35
+                8,  # NOT line 35
                 fake_path,
             ),
         ),
@@ -201,15 +205,15 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             'x',
             CodeOwnerSpecification(
-                '# another test with no blank lines between these\n' +
-                '# comments and the prev rule',
+                '# another test with no blank lines between these\n'
+                + '# comments and the prev rule',
                 'x',
                 ['@y'],
                 73,
                 fake_path,
             ),
         ),
-    ]
+    ],
 )
 def test_parsing(path: str, expected_owner: Optional[CodeOwnerSpecification]) -> None:
     owner = get_resolved_code_owners_for_file(codeowners, Path(path))

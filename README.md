@@ -94,15 +94,15 @@ from codeownerinsights.codeowners import (
     get_resolved_code_owners_for_file,
 )
 
-codeowners_path = Path(".github/CODEOWNERS")
-codeowners = list(parse_code_owners(codeowners_path, codeowners_path.read_text(encoding="utf-8")))
+codeowners_path = Path('.github/CODEOWNERS')
+codeowners = list(parse_code_owners(codeowners_path, codeowners_path.read_text(encoding='utf-8')))
 
 # every rule that matches, in file order
-for spec in get_matching_code_owner_specifications_for_file(codeowners, Path("src/main.py")):
-    print(spec.glob_pattern, "->", spec.owners)
+for spec in get_matching_code_owner_specifications_for_file(codeowners, Path('src/main.py')):
+    print(spec.glob_pattern, '->', spec.owners)
 
 # the resolved owner (last match wins)
-owner = get_resolved_code_owners_for_file(codeowners, Path("src/main.py"))
+owner = get_resolved_code_owners_for_file(codeowners, Path('src/main.py'))
 ```
 
 ## Development

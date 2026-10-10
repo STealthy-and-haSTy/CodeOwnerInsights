@@ -5,7 +5,7 @@ from subprocess import run
 import time
 from dataclasses import dataclass
 
-DEFAULT_GIT = "git"
+DEFAULT_GIT = 'git'
 
 
 @dataclass
@@ -33,16 +33,16 @@ def get_git_changed_files_compared_to_branch(
         return []
     # find the common ancestor incase local or remote base branch is more up to date than the feature branch
     merge_base = exec_command(
-        folder_path, _git_cmd(git, "merge-base", base_branch_name, current_branch)
+        folder_path, _git_cmd(git, 'merge-base', base_branch_name, current_branch)
     )
     if not merge_base or merge_base.process.returncode != 0:
         return []
     diff_cmd = _git_cmd(
         git,
-        "diff",
+        'diff',
         merge_base.process.stdout.rstrip(),
-        "--name-only",
-        "--diff-filter=ACMR",
+        '--name-only',
+        '--diff-filter=ACMR',
     )
     if filter:
         diff_cmd.append(filter)
@@ -50,12 +50,15 @@ def get_git_changed_files_compared_to_branch(
     if not files:
         return []
     return (
-        Path(file) for file in files.process.stdout.split("\n") if file
+        Path(file) for file in files.process.stdout.split('\n') if file
     )  # purists would say that files can be named with \n chars...
 
 
 def get_git_changed_files_compared_to_default_branch(
-    folder_path: Path, filter: Optional[str] = None, fetch_remote: bool = True, git: str = DEFAULT_GIT
+    folder_path: Path,
+    filter: Optional[str] = None,
+    fetch_remote: bool = True,
+    git: str = DEFAULT_GIT,
 ) -> Iterable[Path]:
     """filter can be like --relative=source/ or '*.php' etc."""
     # Compare against the remote-tracking ref for the default branch (e.g.
@@ -69,14 +72,12 @@ def get_git_changed_files_compared_to_default_branch(
 
 
 def get_default_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:
-    result = exec_command(
-        folder_path, _git_cmd(git, "rev-parse", "--abbrev-ref", "origin/HEAD")
-    )
+    result = exec_command(folder_path, _git_cmd(git, 'rev-parse', '--abbrev-ref', 'origin/HEAD'))
     if result and result.process.returncode == 0:
         # origin/HEAD points to something like 'origin/main' - extract the branch name
         ref = result.process.stdout.rstrip()
-        if ref.startswith("origin/"):
-            return ref[len("origin/") :]
+        if ref.startswith('origin/'):
+            return ref[len('origin/') :]
         return ref
     return None
 
@@ -110,8 +111,8 @@ def get_default_branch_remote_ref(
         # verify below falls back to the local branch when the remote ref is
         # unavailable.
         fetch_default_branch(folder_path, branch, git=git)
-    remote_ref = f"origin/{branch}"
-    result = exec_command(folder_path, _git_cmd(git, "rev-parse", "--verify", remote_ref))
+    remote_ref = f'origin/{branch}'
+    result = exec_command(folder_path, _git_cmd(git, 'rev-parse', '--verify', remote_ref))
     if result and result.process.returncode == 0:
         return remote_ref
     return branch
@@ -123,33 +124,29 @@ def fetch_default_branch(folder_path: Path, branch: str, git: str = DEFAULT_GIT)
     Network or permission failures are intentionally ignored: the caller falls
     back to the local ref when the fetch does not succeed.
     """
-    result = exec_command(
-        folder_path, _git_cmd(git, "fetch", "origin", branch)
-    )
+    result = exec_command(folder_path, _git_cmd(git, 'fetch', 'origin', branch))
     if not result or result.process.returncode != 0:
         return
 
 
 def get_current_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:
-    result = exec_command(folder_path, _git_cmd(git, "rev-parse", "--abbrev-ref", "HEAD"))
+    result = exec_command(folder_path, _git_cmd(git, 'rev-parse', '--abbrev-ref', 'HEAD'))
     if result and result.process.returncode == 0:
         return result.process.stdout.rstrip()
     return None
 
 
-def exec_command(folder_path: Path, cmd: List[str], git: str = DEFAULT_GIT) -> ShellExecutionSummary:
-    return execute_with_stdin(cmd, False, "", folder_path)
+def exec_command(
+    folder_path: Path, cmd: List[str], git: str = DEFAULT_GIT
+) -> ShellExecutionSummary:
+    return execute_with_stdin(cmd, False, '', folder_path)
 
 
 # returns the completed subpress and how long it took to complete as a float
-def execute_with_stdin(
-    cmd, shell, text, cwd: Optional[Path] = None
-) -> ShellExecutionSummary:
+def execute_with_stdin(cmd, shell, text, cwd: Optional[Path] = None) -> ShellExecutionSummary:
     before = time.perf_counter()
     # https://docs.python.org/3/library/subprocess.html#subprocess.run - new in version 3.5
     # therefore, you need to be using ST build >= 4050 and the package should be opting in to Python 3.8 plugin host
-    p = run(
-        cmd, shell=shell, capture_output=True, input=text, encoding="utf-8", cwd=cwd
-    )
+    p = run(cmd, shell=shell, capture_output=True, input=text, encoding='utf-8', cwd=cwd)
     after = time.perf_counter()
     return ShellExecutionSummary(p, after - before)

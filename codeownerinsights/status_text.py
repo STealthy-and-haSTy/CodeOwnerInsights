@@ -11,12 +11,12 @@ from typing import Dict, Optional
 
 from .codeowners import CodeOwnerSpecification
 
-DEFAULT_STATUS_TEMPLATE = "Code Owner: {comment} - {owners}"
+DEFAULT_STATUS_TEMPLATE = 'Code Owner: {comment} - {owners}'
 
-_PLACEHOLDER = re.compile(r"\{(\w+)\}")
+_PLACEHOLDER = re.compile(r'\{(\w+)\}')
 
 
-def format_comment(comment: Optional[str], separator: str = " ") -> str:
+def format_comment(comment: Optional[str], separator: str = ' ') -> str:
     """Flatten a comment block onto one line, dropping the leading ``#``s.
 
     ``separator`` joins the lines: a space suits a status bar, where the result
@@ -24,12 +24,12 @@ def format_comment(comment: Optional[str], separator: str = " ") -> str:
     entry to be a little more readable.
     """
     if not comment:
-        return ""
+        return ''
 
     lines = []
-    for line in comment.split("\n"):
+    for line in comment.split('\n'):
         line = line.strip()
-        if line.startswith("#"):
+        if line.startswith('#'):
             line = line[1:]
         line = line.strip()
         if line:
@@ -47,12 +47,12 @@ def get_template_replacements(
     """
     owners = list(specification.owners)
     return {
-        "owners": ", ".join(owners),
-        "owner": owners[0] if owners else "",
-        "comment": format_comment(specification.nearest_comment),
-        "pattern": specification.glob_pattern,
-        "line_number": str(specification.line_number),
-        "codeowners_file": str(specification.codeowners_file_path),
+        'owners': ', '.join(owners),
+        'owner': owners[0] if owners else '',
+        'comment': format_comment(specification.nearest_comment),
+        'pattern': specification.glob_pattern,
+        'line_number': str(specification.line_number),
+        'codeowners_file': str(specification.codeowners_file_path),
     }
 
 
@@ -76,4 +76,4 @@ def render_status_text(template: str, specification: CodeOwnerSpecification) -> 
         lambda match: replacements.get(match.group(1), match.group(0)),
         template,
     )
-    return " ".join(text.split())
+    return ' '.join(text.split())

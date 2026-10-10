@@ -10,7 +10,7 @@ from wcmatch.glob import globmatch, GLOBSTAR
 # say do not work. They must be matched literally, so the pattern is escaped
 # before being handed to wcmatch. ``*``, ``?`` and ``**`` are left alone --
 # those are the wildcards CODEOWNERS does support.
-_LITERAL_GLOB_CHARS = str.maketrans({"[": r"\[", "]": r"\]"})
+_LITERAL_GLOB_CHARS = str.maketrans({'[': r'\[', ']': r'\]'})
 
 
 def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
@@ -50,12 +50,14 @@ def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
 
     return globmatch(filename=str(path), patterns=patterns_to_try, flags=GLOBSTAR)
 
+
 @dataclass
 class CodeOwnerSpecification:
     """Data class for showing the code owner specification parsed from a line in a CODEOWNERS file."""
+
     nearest_comment: Optional[str]
     glob_pattern: str
-    owners: list #[str]
+    owners: list  # [str]
     line_number: int
     codeowners_file_path: Path
 
@@ -63,7 +65,9 @@ class CodeOwnerSpecification:
         return does_codeowner_glob_match(self.glob_pattern, path)
 
 
-def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> Iterable[CodeOwnerSpecification]:
+def parse_code_owners(
+    codeowners_file_path: Path, codeowners_content: str
+) -> Iterable[CodeOwnerSpecification]:
     last_comment = None
     line_number = 0
     prev_line_was_a_rule = False
@@ -95,16 +99,22 @@ def parse_code_owners(codeowners_file_path: Path, codeowners_content: str) -> It
             glob_pattern = line[0:space_pos]
             owners = line[space_pos:].lstrip().split()
 
-        yield CodeOwnerSpecification(last_comment, glob_pattern, owners, line_number, codeowners_file_path)
+        yield CodeOwnerSpecification(
+            last_comment, glob_pattern, owners, line_number, codeowners_file_path
+        )
 
 
-def get_matching_code_owner_specifications_for_file(codeowners: Iterable[CodeOwnerSpecification], path: Path) -> Iterable[CodeOwnerSpecification]:
+def get_matching_code_owner_specifications_for_file(
+    codeowners: Iterable[CodeOwnerSpecification], path: Path
+) -> Iterable[CodeOwnerSpecification]:
     for owner_specification in codeowners:
         if owner_specification.does_match(path):
             yield owner_specification
 
 
-def get_resolved_code_owners_for_file(codeowners: Iterable[CodeOwnerSpecification], path: Path) -> Optional[CodeOwnerSpecification]:
+def get_resolved_code_owners_for_file(
+    codeowners: Iterable[CodeOwnerSpecification], path: Path
+) -> Optional[CodeOwnerSpecification]:
     # TODO: option to skip * root entry
 
     queue = deque(get_matching_code_owner_specifications_for_file(codeowners, path), maxlen=1)
@@ -116,7 +126,7 @@ def get_resolved_code_owners_for_file(codeowners: Iterable[CodeOwnerSpecificatio
 
 
 def get_code_owners_file(repo_root: Path) -> Optional[Path]:
-    try_locations = [ './.github/', './', './docs']
+    try_locations = ['./.github/', './', './docs']
     # If CODEOWNERS files exist in more than one of those locations, GitHub will search for them in that order and use the first one it finds.
 
     for folder in try_locations:

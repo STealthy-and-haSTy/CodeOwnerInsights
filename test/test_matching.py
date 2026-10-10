@@ -1,6 +1,7 @@
 import pytest
 from codeownerinsights.codeowners import does_codeowner_glob_match
 
+
 @pytest.mark.parametrize(
     ('path', 'glob', 'expected_result'),
     [
@@ -197,7 +198,7 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
             '**/logs',
             True,
         ),
-    ]
+    ],
 )
 def test_matching(path: str, glob: str, expected_result: bool) -> None:
     assert does_codeowner_glob_match(glob, path) == expected_result

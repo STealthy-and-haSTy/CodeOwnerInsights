@@ -23,14 +23,14 @@ from .status_text import (
 )
 
 __all__ = [
-    "CodeOwnerSpecification",
-    "DEFAULT_STATUS_TEMPLATE",
-    "does_codeowner_glob_match",
-    "get_code_owners_file",
-    "get_matching_code_owner_specifications_for_file",
-    "get_resolved_code_owners_for_file",
-    "get_template_replacements",
-    "is_path_relative_to",
-    "parse_code_owners",
-    "render_status_text",
+    'CodeOwnerSpecification',
+    'DEFAULT_STATUS_TEMPLATE',
+    'does_codeowner_glob_match',
+    'get_code_owners_file',
+    'get_matching_code_owner_specifications_for_file',
+    'get_resolved_code_owners_for_file',
+    'get_template_replacements',
+    'is_path_relative_to',
+    'parse_code_owners',
+    'render_status_text',
 ]

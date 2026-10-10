@@ -23,10 +23,10 @@ def coerce_bool(value: object, default: bool) -> bool:
     if isinstance(value, str):
         # strip quotes as well as space, so a value that was double-quoted by
         # mistake ("\"false\"") is read the same as a bare one
-        lowered = value.strip().strip("\"'").strip().lower()
-        if lowered in ("true", "yes", "on", "1"):
+        lowered = value.strip().strip('"\'').strip().lower()
+        if lowered in ('true', 'yes', 'on', '1'):
             return True
-        if lowered in ("false", "no", "off", "0"):
+        if lowered in ('false', 'no', 'off', '0'):
             return False
         return default
     if isinstance(value, (int, float)):

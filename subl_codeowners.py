@@ -23,10 +23,10 @@ from .codeownerinsights.status_text import (
 )
 
 
-STATUS_BAR_KEY = "codeowner"
-STATUS_BAR_KEY_COMPUTING_DIFF = "codeowner_diff"
-SETTINGS_FILE = "CodeOwnerInsights.sublime-settings"
-STATUS_BAR_TEMPLATE_SETTING = "status_bar_template"
+STATUS_BAR_KEY = 'codeowner'
+STATUS_BAR_KEY_COMPUTING_DIFF = 'codeowner_diff'
+SETTINGS_FILE = 'CodeOwnerInsights.sublime-settings'
+STATUS_BAR_TEMPLATE_SETTING = 'status_bar_template'
 codeowner_window_cache = {}
 
 
@@ -60,8 +60,7 @@ class CodeOwnerCacheEntry:
 
     def is_valid(self, codeowners_file: Path) -> bool:
         return (
-            codeowners_file.exists()
-            and self.modification_time == codeowners_file.stat().st_mtime
+            codeowners_file.exists() and self.modification_time == codeowners_file.stat().st_mtime
         )
 
 
@@ -115,7 +114,7 @@ def clear_cache_when_codeowner_file_saved(view: sublime.View) -> None:
         code_owners_path = get_code_owners_file(project_folder)
         if code_owners_path == saved_file_path:
             print(
-                f"CodeOwnerInsights: {saved_file_path} has been updated, clearing codeowner cache"
+                f'CodeOwnerInsights: {saved_file_path} has been updated, clearing codeowner cache'
             )
             codeowner_window_cache[view.window().id()] = dict()
             return
@@ -166,9 +165,7 @@ def get_project_folders_for_view(view: sublime.View) -> Optional[Iterable[Path]]
     return get_project_folders_for_file(file_path, window)
 
 
-def get_project_folders_for_file(
-    file_path: Path, window: sublime.Window
-) -> Iterable[Path]:
+def get_project_folders_for_file(file_path: Path, window: sublime.Window) -> Iterable[Path]:
     # TODO: this should be relative to git root, which may not be ST project root...
     # `git rev-parse --show-toplevel` returns full path to folder containing .git folder (could be submodule)
     for folder in window.folders():
@@ -210,9 +207,7 @@ def get_code_owner_specifications_for_folder(
     if codeowners_file:
         modification_time = codeowners_file.stat().st_mtime
         specifications = list(
-            parse_code_owners(
-                codeowners_file, codeowners_file.read_text(encoding="utf-8")
-            )
+            parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8'))
         )
 
         set_code_owner_cache_entry(
@@ -255,12 +250,10 @@ class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
         codeowner = get_code_owner_for_view(self.view)
         if codeowner:
             self.view.window().run_command(
-                "open_file",
+                'open_file',
                 {
-                    "file": str(codeowner.codeowners_file_path)
-                    + ":"
-                    + str(codeowner.line_number),
-                    "encoded_position": True,
+                    'file': str(codeowner.codeowners_file_path) + ':' + str(codeowner.line_number),
+                    'encoded_position': True,
                 },
             )
 
@@ -304,10 +297,10 @@ def get_matching_code_owner_specifications_for_view(
 
 
 def _format_rule_item(spec: CodeOwnerSpecification) -> List[str]:
-    owners = ", ".join(spec.owners) if spec.owners else "(no owners)"
-    headline = f"{spec.glob_pattern}  \u2192  {owners}"
+    owners = ', '.join(spec.owners) if spec.owners else '(no owners)'
+    headline = f'{spec.glob_pattern}  \u2192  {owners}'
     # the comment gets its own row, so separate its lines for readability
-    comment = format_comment(spec.nearest_comment, " \u00b7 ")
+    comment = format_comment(spec.nearest_comment, ' \u00b7 ')
     return [headline, comment]
 
 
@@ -322,11 +315,11 @@ def _open_codeowners_at_line(
     # that is needed: Sublime places the caret itself, and does so after the
     # file has finished loading.
     window.run_command(
-        "open_file",
+        'open_file',
         {
-            "file": f"{spec.codeowners_file_path}:{spec.line_number}",
-            "encoded_position": True,
-            "transient": preview,
+            'file': f'{spec.codeowners_file_path}:{spec.line_number}',
+            'encoded_position': True,
+            'transient': preview,
         },
     )
 
@@ -346,9 +339,7 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
         window = self.view.window()
         matches = get_matching_code_owner_specifications_for_view(self.view)
         if not matches:
-            window.status_message(
-                "CodeOwnerInsights: no CODEOWNERS rule matches this file"
-            )
+            window.status_message('CodeOwnerInsights: no CODEOWNERS rule matches this file')
             return
 
         self._matches = matches
@@ -358,7 +349,7 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
             self._on_select,
             on_highlight=self._on_highlight,
             selected_index=len(matches) - 1,
-            placeholder="All CODEOWNERS rules matching this file",
+            placeholder='All CODEOWNERS rules matching this file',
         )
 
     def is_enabled(self) -> bool:
@@ -383,9 +374,7 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
             return
         # Opening the same file without `transient` promotes the preview sheet
         # in place, so confirming a rule leaves a normal tab on that line.
-        _open_codeowners_at_line(
-            self.view.window(), self._matches[index], preview=False
-        )
+        _open_codeowners_at_line(self.view.window(), self._matches[index], preview=False)
 
     def _close_preview(self) -> None:
         preview = self._preview_view
@@ -404,7 +393,7 @@ class ShowCodeOwnerRulesCommand(sublime_plugin.TextCommand):
         window = self.view.window()
         active = window.active_view()
         if active is not None and active.id() == preview.id():
-            window.run_command("close_file")
+            window.run_command('close_file')
 
 
 class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
@@ -420,17 +409,15 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         if fetch_remote_override is not None:
             fetch_remote = coerce_bool(fetch_remote_override, True)
         else:
-            fetch_remote = get_bool_setting("fetch_remote_default_branch", True)
+            fetch_remote = get_bool_setting('fetch_remote_default_branch', True)
         # remember the mode so the popup's refresh button can re-run with the
         # same include_unowned but forcing a fetch from the remote
         self._include_unowned = include_unowned
         self.view.set_status(
-            STATUS_BAR_KEY_COMPUTING_DIFF, "CodeOwnerInsights: computing git diff..."
+            STATUS_BAR_KEY_COMPUTING_DIFF, 'CodeOwnerInsights: computing git diff...'
         )
         sublime.set_timeout_async(
-            lambda: self._compute_and_show(
-                self.view.window(), include_unowned, fetch_remote
-            ),
+            lambda: self._compute_and_show(self.view.window(), include_unowned, fetch_remote),
             0,
         )
 
@@ -444,9 +431,7 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
             result = list(get_git_change_owners(window, include_unowned, fetch_remote))
         finally:
             # clear the status message on the UI thread once the work is done
-            sublime.set_timeout(
-                lambda: self.view.erase_status(STATUS_BAR_KEY_COMPUTING_DIFF), 0
-            )
+            sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY_COMPUTING_DIFF), 0)
 
         owner_tree = self._group_by_owners(result)
         popup_content = self._format_popup(owner_tree)
@@ -461,34 +446,30 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         owner_tree: dict = {}
         for folder, file, codeowner_spec in result:
             if codeowner_spec and codeowner_spec.owners:
-                owners = ", ".join(codeowner_spec.owners)
+                owners = ', '.join(codeowner_spec.owners)
             else:
-                owners = "*UNOWNED*"
+                owners = '*UNOWNED*'
             owner_tree.setdefault(owners, []).append((folder, file))
         return owner_tree
 
     @staticmethod
     def _format_popup(owner_tree: dict) -> str:
-        popup_content = ""
+        popup_content = ''
         # refresh button: re-runs the diff forcing a fetch from the remote, so
         # results reflect the real baseline even when the setting is off. This
         # is how a user corrects stale-looking results with a single click.
         popup_content += (
             '<a href="subl:refresh" style="padding: 0 6px; font-weight: bold;">'
-            "\u21bb Refresh from remote</a>\n"
-            "<hr/>\n"
+            '\u21bb Refresh from remote</a>\n'
+            '<hr/>\n'
         )
         for owners in owner_tree.keys():
-            popup_content += f"<h2>{html.escape(owners)}</h2>\n<ul>\n"
+            popup_content += f'<h2>{html.escape(owners)}</h2>\n<ul>\n'
 
             for folder, file in owner_tree[owners]:
-                command_url = sublime.html_format_command(
-                    "open_file", {"file": str(folder / file)}
-                )
-                popup_content += (
-                    f'<li><a href="{command_url}">{html.escape(str(file))}</a></li>\n'
-                )
-            popup_content += "</ul>\n"
+                command_url = sublime.html_format_command('open_file', {'file': str(folder / file)})
+                popup_content += f'<li><a href="{command_url}">{html.escape(str(file))}</a></li>\n'
+            popup_content += '</ul>\n'
         return popup_content
 
     def _show_popup(self, popup_content: str) -> None:
@@ -507,13 +488,9 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         # close the current popup, then re-run the diff forcing a fetch from
         # the remote regardless of the user setting
         self.view.hide_popup()
-        self.view.set_status(
-            STATUS_BAR_KEY, "CodeOwnerInsights: refreshing from remote..."
-        )
+        self.view.set_status(STATUS_BAR_KEY, 'CodeOwnerInsights: refreshing from remote...')
         sublime.set_timeout_async(
-            lambda: self._compute_and_show(
-                self.view.window(), self._include_unowned, True
-            ),
+            lambda: self._compute_and_show(self.view.window(), self._include_unowned, True),
             0,
         )
 
@@ -524,14 +501,14 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         return False
 
     def navigate(self, link: str) -> None:
-        if link.startswith("subl:"):
-            link = link[len("subl:") :]
+        if link.startswith('subl:'):
+            link = link[len('subl:') :]
 
-        if link == "refresh":
+        if link == 'refresh':
             self._refresh()
             return
 
-        if open_angle_pos := link.find("{"):
+        if open_angle_pos := link.find('{'):
             command_args = sublime.decode_value(link[open_angle_pos:])
             command_name = link[0:open_angle_pos].strip()
         else:

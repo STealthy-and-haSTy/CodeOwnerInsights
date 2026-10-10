@@ -23,19 +23,15 @@ from codeownerinsights import (
     get_resolved_code_owners_for_file,
 )
 
-codeowners_path = Path(".github/CODEOWNERS")
-codeowners = list(
-    parse_code_owners(codeowners_path, codeowners_path.read_text(encoding="utf-8"))
-)
+codeowners_path = Path('.github/CODEOWNERS')
+codeowners = list(parse_code_owners(codeowners_path, codeowners_path.read_text(encoding='utf-8')))
 
 # every rule that matches, in file order
-for spec in get_matching_code_owner_specifications_for_file(
-    codeowners, Path("src/main.py")
-):
-    print(spec.glob_pattern, "->", spec.owners)
+for spec in get_matching_code_owner_specifications_for_file(codeowners, Path('src/main.py')):
+    print(spec.glob_pattern, '->', spec.owners)
 
 # the resolved owner: the last matching rule wins
-owner = get_resolved_code_owners_for_file(codeowners, Path("src/main.py"))
+owner = get_resolved_code_owners_for_file(codeowners, Path('src/main.py'))
 print(owner.owners)
 ```
 
@@ -51,10 +47,10 @@ overridden by a later one — or why an intended rule did not match at all.
 rule can be presented with its documentation rather than as a bare pattern.
 
 ```python
-spec.nearest_comment   # '# Frontend rules\n# owned by the web team'
-spec.glob_pattern      # '/web/'
-spec.owners            # ['@web-team']
-spec.line_number       # 5
+spec.nearest_comment  # '# Frontend rules\n# owned by the web team'
+spec.glob_pattern  # '/web/'
+spec.owners  # ['@web-team']
+spec.line_number  # 5
 spec.codeowners_file_path
 ```
 
@@ -77,7 +73,7 @@ handle them. The two do agree on directory and anchoring rules, which is the par
 GitHub searches, in GitHub's order, and returns the first hit:
 
 ```python
-get_code_owners_file(Path("."))
+get_code_owners_file(Path('.'))
 # .github/CODEOWNERS, CODEOWNERS, or docs/CODEOWNERS
 ```
 
@@ -90,7 +86,7 @@ branch, which is what you want to answer "who reviews this PR".
 from pathlib import Path
 from codeownerinsights.git import get_git_changed_files_compared_to_default_branch
 
-for changed in get_git_changed_files_compared_to_default_branch(Path(".")):
+for changed in get_git_changed_files_compared_to_default_branch(Path('.')):
     print(changed)
 ```
 
@@ -104,7 +100,7 @@ substituted by replacing the leading command token — useful for injecting
 credentials:
 
 ```python
-get_git_changed_files_compared_to_default_branch(Path("."), git="my-git-wrapper")
+get_git_changed_files_compared_to_default_branch(Path('.'), git='my-git-wrapper')
 ```
 
 No function changes the process working directory; commands run against the
@@ -119,7 +115,7 @@ for callers that want configurable wording.
 ```python
 from codeownerinsights.status_text import render_status_text
 
-render_status_text("Code Owner: {comment} - {owners}", spec)
+render_status_text('Code Owner: {comment} - {owners}', spec)
 # 'Code Owner: Frontend rules owned by the web team - @web-team'
 ```
 
