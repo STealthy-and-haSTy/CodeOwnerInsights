@@ -1,6 +1,6 @@
 from collections import deque
 from pathlib import Path
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional
 from dataclasses import dataclass
 from wcmatch.glob import globmatch, GLOBSTAR
 

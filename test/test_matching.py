@@ -1,5 +1,4 @@
 import pytest
-from pathlib import Path
 from codeownerinsights.codeowners import does_codeowner_glob_match
 
 @pytest.mark.parametrize(

@@ -1,8 +1,7 @@
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
-import sys
+from typing import Iterable, List, Optional
 import subprocess
-from subprocess import run, PIPE
+from subprocess import run
 import time
 from dataclasses import dataclass
 
