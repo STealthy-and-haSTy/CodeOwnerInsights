@@ -25,6 +25,7 @@ packages = [{ include = "codeownerinsights" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
+ruff = "^0.12.0"
 
 [tool.pytest.ini_options]
 # the repo root holds the modules under test, which are not installed as a package
