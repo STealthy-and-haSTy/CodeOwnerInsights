@@ -110,12 +110,13 @@ owner = get_resolved_code_owners_for_file(codeowners, Path("src/main.py"))
 To run the parser tests, in a terminal emulator:
 
 ```sh
-python3.12 -m venv ./.venv
+python3 -m venv ./.venv
 source .venv/bin/activate
 pip install poetry
 poetry install --no-root
 deactivate # to avoid problems later
-.venv/bin/poetry run python3 -- -m pytest
+.venv/bin/poetry run pytest
 ```
 
-Ideally we will get these tests running in CI also.
+The tests also run in CI on every push and pull request, in
+[`.github/workflows/test.yml`](.github/workflows/test.yml).
