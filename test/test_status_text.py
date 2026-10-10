@@ -40,11 +40,47 @@ def test_default_template_renders_as_before() -> None:
 
 
 def test_default_template_without_a_comment() -> None:
-    # no trailing dash or doubled space to tidy up: the value renders empty and
-    # the surrounding whitespace is collapsed
+    # the separator beside {comment} is conditional, so it drops away with the
+    # comment instead of leaving a stray dash or a doubled space
     spec = make_spec(nearest_comment=None, owners=['keith-hall'])
 
-    assert render_status_text(DEFAULT_STATUS_TEMPLATE, spec) == 'Code Owner: - keith-hall'
+    assert render_status_text(DEFAULT_STATUS_TEMPLATE, spec) == 'Code Owner: keith-hall'
+
+
+@pytest.mark.parametrize(
+    ('template', 'expected_result'),
+    [
+        # the conditional text is included, as a suffix, when the key has a value
+        ('{comment? - }{owners}', 'Backend team - keith-hall, @platform'),
+        ('{comment? - }{owner}', 'Backend team - keith-hall'),
+        # a misspelled conditional key is left in place, like a plain key
+        ('{comment? - }{nonexistent}', 'Backend team - {nonexistent}'),
+        # an empty conditional is allowed and is just a no-op
+        ('{comment? }{owners}', 'Backend team keith-hall, @platform'),
+    ],
+)
+def test_conditional_placeholder_with_a_comment(template: str, expected_result: str) -> None:
+    spec = make_spec('# Backend team\n', owners=['keith-hall', '@platform'])
+
+    assert render_status_text(template, spec) == expected_result
+
+
+@pytest.mark.parametrize(
+    ('template', 'expected_result'),
+    [
+        # the conditional text is dropped when the key has nothing to say
+        ('{comment? - }{owners}', 'keith-hall'),
+        ('{comment? - }{owner}', 'keith-hall'),
+        # an empty conditional is still a no-op
+        ('{comment?}{owners}', 'keith-hall'),
+        # a misspelled conditional key is left in place, like a plain key
+        ('{comment? - }{nonexistent}', '{nonexistent}'),
+    ],
+)
+def test_conditional_placeholder_without_a_comment(template: str, expected_result: str) -> None:
+    spec = make_spec(nearest_comment=None, owners=['keith-hall'])
+
+    assert render_status_text(template, spec) == expected_result
 
 
 @pytest.mark.parametrize(

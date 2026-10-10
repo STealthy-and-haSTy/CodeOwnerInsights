@@ -115,7 +115,7 @@ for callers that want configurable wording.
 ```python
 from codeownerinsights.status_text import render_status_text
 
-render_status_text('Code Owner: {comment} - {owners}', spec)
+render_status_text('Code Owner: {comment? - }{owners}', spec)
 # 'Code Owner: Frontend rules owned by the web team - @web-team'
 ```
 
@@ -124,6 +124,11 @@ Available keys are `{owners}`, `{owner}` (the first owner only), `{comment}`,
 renders as nothing and the surrounding whitespace is collapsed, so one template
 serves every rule. A misspelled key is left in place rather than silently
 blanked, and nothing raises on a bad template.
+
+A key can be made conditional: `{key?text}` includes the literal `text` only
+when the key has a value, and drops it when it does not. That is how the
+example keeps the dash beside `{comment}` when there is a comment and omits it
+when there is not, instead of leaving a stray dash behind.
 
 ## Used by
 

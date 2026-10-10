@@ -36,12 +36,17 @@ replaced with values from the rule that resolved for the current file:
 | `{line_number}` | The line the rule is on in its `CODEOWNERS` file. |
 | `{codeowners_file}` | Path to the `CODEOWNERS` file the rule came from. |
 
-The default is `"Code Owner: {comment} - {owners}"`. A key with nothing to say —
+The default is `"Code Owner: {comment? - }{owners}"`. A key with nothing to say —
 `{comment}` on a rule with no comment above it, say — renders as nothing and the
 whitespace around it is collapsed, so a single template works for every rule
 rather than needing a special case per rule. A misspelled key is left in place
 rather than silently blanked, so it is obvious what went wrong. Setting the
 template to `""` hides the status bar entirely.
+
+A key can be made conditional: `{key?text}` includes the literal `text` only
+when the key has a value, and drops it when it does not. That is how the default
+template keeps the dash beside `{comment}` when there is a comment and omits it
+when there is not, instead of leaving a stray dash behind.
 
 There is experimental support for showing all `git` changed files compared to
 the default branch, grouped by code owner. You will find it in the command

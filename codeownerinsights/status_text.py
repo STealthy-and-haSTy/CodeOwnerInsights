@@ -11,9 +11,13 @@ from typing import Dict, Optional
 
 from .codeowners import CodeOwnerSpecification
 
-DEFAULT_STATUS_TEMPLATE = 'Code Owner: {comment} - {owners}'
+DEFAULT_STATUS_TEMPLATE = 'Code Owner: {comment? - }{owners}'
 
-_PLACEHOLDER = re.compile(r'\{(\w+)\}')
+# A placeholder is either ``{key}``, substituted with the key's value, or
+# ``{key?text}``, where the literal text is included only when the key has a
+# value. The second form is what lets a separator sit beside a comment and be
+# dropped when there is none, instead of leaving a stray dash behind.
+_PLACEHOLDER = re.compile(r'\{(\w+)(\?[^}]*)?\}')
 
 
 def format_comment(comment: Optional[str], separator: str = ' ') -> str:
@@ -73,7 +77,27 @@ def render_status_text(template: str, specification: CodeOwnerSpecification) -> 
     text = _PLACEHOLDER.sub(
         # a function replacement, so a value containing backslashes is not
         # mistaken for a group reference
-        lambda match: replacements.get(match.group(1), match.group(0)),
+        lambda match: _render_placeholder(match, replacements),
         template,
     )
     return ' '.join(text.split())
+
+
+def _render_placeholder(match: re.Match, replacements: Dict[str, str]) -> str:
+    key = match.group(1)
+    conditional = match.group(2)
+    if conditional is None:
+        # a plain {key}: substitute the value, or leave it alone when the key
+        # is not recognised, since an unsubstituted key is the only clue the
+        # user gets that their spelling is wrong
+        return replacements.get(key, match.group(0))
+    # a {key?text} conditional: the value is followed by the literal text when
+    # the key has a value, and the whole thing is dropped when it does not. The
+    # text sits after the key, so it is a suffix -- that is what lets a
+    # separator beside {comment} vanish with the comment instead of leaving a
+    # stray dash in the status bar. A key that is not recognised is left
+    # exactly as written, so a misspelled conditional is still obvious.
+    if key not in replacements:
+        return match.group(0)
+    value = replacements[key]
+    return value + conditional[1:] if value else ''
