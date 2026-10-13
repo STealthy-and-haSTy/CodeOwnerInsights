@@ -139,8 +139,12 @@ def get_code_owner_for_view(view: sublime.View) -> Optional[CodeOwnerSpecificati
     if not relevant_project_folders:
         return None
 
+    file_path = get_effective_file_path(view)
+    if file_path is None:
+        return None
+
     for folder_path in relevant_project_folders:
-        codeowner = get_code_owner(view.window(), folder_path, view.file_name())
+        codeowner = get_code_owner(view.window(), folder_path, file_path)
         if codeowner:
             return codeowner
 
@@ -155,8 +159,32 @@ def get_file_path_of_view(view: sublime.View) -> Optional[Path]:
     return Path(file_name)
 
 
-def get_project_folders_for_view(view: sublime.View) -> Optional[Iterable[Path]]:
+def get_effective_file_path(view: sublime.View) -> Optional[Path]:
+    """The path to treat as the current file for owner resolution.
+
+    When a view has a real file open, that is used. When no file is open but the
+    project has exactly one folder, that folder is treated as the file so the
+    command palette entries stay available -- a single-folder project is
+    effectively "a file in that folder" for ownership purposes. With zero or
+    multiple folders and no file, there is nothing to resolve against.
+    """
     file_path = get_file_path_of_view(view)
+    if file_path is not None:
+        return file_path
+
+    window = view.window()
+    if window is None:
+        return None
+
+    folders = window.folders()
+    if len(folders) != 1:
+        return None
+
+    return Path(folders[0])
+
+
+def get_project_folders_for_view(view: sublime.View) -> Optional[Iterable[Path]]:
+    file_path = get_effective_file_path(view)
 
     window = view.window()
     if not window or not file_path:
@@ -275,7 +303,7 @@ def get_matching_code_owner_specifications_for_view(
     if not relevant_project_folders:
         return []
 
-    file_path = get_file_path_of_view(view)
+    file_path = get_effective_file_path(view)
     if file_path is None:
         return []
 
