@@ -2,7 +2,7 @@ import functools
 import re
 from collections import deque
 from pathlib import Path, PurePath
-from typing import Iterable, Optional, Pattern
+from typing import Iterable, Optional, Pattern, Tuple
 from dataclasses import dataclass
 from wcmatch.glob import translate, CASE, DOTGLOB, FORCEUNIX, GLOBSTAR
 
@@ -16,7 +16,10 @@ _LITERAL_GLOB_CHARS = str.maketrans({'[': r'\[', ']': r'\]'})
 
 
 @functools.lru_cache(maxsize=None)
-def _compile_codeowner_glob(glob_pattern: str) -> Optional[Pattern[str]]:
+def _compile_codeowner_glob(glob_pattern: str) -> Optional[Tuple[str, Pattern[str]]]:
+    # Any path the pattern matches contains its longest wildcard-free run, so a
+    # substring check rules out most paths without running the regex.
+    required_literal = max(re.split(r'[*?/]', glob_pattern), key=len)
     glob_pattern = glob_pattern.translate(_LITERAL_GLOB_CHARS)
     directory_only = glob_pattern.endswith('/')
     body = glob_pattern.strip('/')
@@ -39,14 +42,17 @@ def _compile_codeowner_glob(glob_pattern: str) -> Optional[Pattern[str]]:
     regexes, _ = translate(
         patterns_to_try, flags=GLOBSTAR | DOTGLOB | CASE | FORCEUNIX
     )
-    return re.compile('|'.join(regexes))
+    return required_literal, re.compile('|'.join(regexes))
 
 
 def does_codeowner_glob_match(glob_pattern: str, path: PurePath) -> bool:
-    regex = _compile_codeowner_glob(glob_pattern)
-    if regex is None:
+    compiled = _compile_codeowner_glob(glob_pattern)
+    if compiled is None:
         return False
+    required_literal, regex = compiled
     posix_path = path.as_posix() if isinstance(path, PurePath) else str(path)
+    if required_literal not in posix_path:
+        return False
     return regex.match(posix_path.lstrip('/')) is not None
 
 
