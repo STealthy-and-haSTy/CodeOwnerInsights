@@ -39,9 +39,7 @@ def _compile_codeowner_glob(glob_pattern: str) -> Optional[Tuple[str, Pattern[st
         patterns_to_try = ['**/' + pattern for pattern in patterns_to_try]
 
     # GitHub's matching does not vary by platform, while wcmatch's defaults do.
-    regexes, _ = translate(
-        patterns_to_try, flags=GLOBSTAR | DOTGLOB | CASE | FORCEUNIX
-    )
+    regexes, _ = translate(patterns_to_try, flags=GLOBSTAR | DOTGLOB | CASE | FORCEUNIX)
     return required_literal, re.compile('|'.join(regexes))
 
 
