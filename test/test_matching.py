@@ -1,4 +1,5 @@
 import pytest
+from pathlib import PureWindowsPath
 from codeownerinsights.codeowners import does_codeowner_glob_match
 
 
@@ -279,3 +280,8 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
 )
 def test_matching(path: str, glob: str, expected_result: bool) -> None:
     assert does_codeowner_glob_match(glob, path) == expected_result
+
+
+def test_windows_path_matches_with_forward_slash_pattern() -> None:
+    assert does_codeowner_glob_match('/docs/*', PureWindowsPath('docs\\intro.md'))
+    assert not does_codeowner_glob_match('/docs/*', PureWindowsPath('docs\\sub\\x.md'))

@@ -102,6 +102,12 @@ repository root. A pattern without a trailing slash, such as `/build/logs` or `*
 matched only one level into a directory of that name; it now covers the whole subtree.
 Wildcards now match dotfiles, so `*.yml` covers `.github/workflows/ci.yml`.
 
+**Tab-separated rules and indented comments.** A tab between the pattern and its owners
+made the whole line the pattern, so the rule matched nothing; any whitespace now
+separates them. A comment line with leading whitespace is no longer parsed as a rule.
+Matching is also case-sensitive with `/` separators on every platform, as on GitHub,
+rather than following wcmatch's platform defaults.
+
 **Comment rendering.** A two-line comment no longer renders as
 `"Backend teamsecond line"`; comments are joined with `" · "`. The old flattening stripped
 `"\n#"` without replacing it with a space.

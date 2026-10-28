@@ -219,3 +219,16 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
 def test_parsing(path: str, expected_owner: Optional[CodeOwnerSpecification]) -> None:
     owner = get_resolved_code_owners_for_file(codeowners, Path(path))
     assert owner == expected_owner
+
+
+def test_tab_separates_pattern_from_owners() -> None:
+    (rule,) = parse_code_owners(fake_path, '*.js\t@js-owner\t@other')
+    assert rule.glob_pattern == '*.js'
+    assert rule.owners == ['@js-owner', '@other']
+
+
+def test_indented_comment_is_not_a_rule() -> None:
+    content = '  # indented comment\n*.js @js-owner'
+    (rule,) = parse_code_owners(fake_path, content)
+    assert rule.glob_pattern == '*.js'
+    assert rule.nearest_comment == '  # indented comment'

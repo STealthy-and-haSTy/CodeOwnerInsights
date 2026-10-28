@@ -1,8 +1,8 @@
 from collections import deque
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Iterable, Optional
 from dataclasses import dataclass
-from wcmatch.glob import globmatch, DOTGLOB, GLOBSTAR
+from wcmatch.glob import globmatch, CASE, DOTGLOB, FORCEUNIX, GLOBSTAR
 
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
@@ -13,7 +13,7 @@ from wcmatch.glob import globmatch, DOTGLOB, GLOBSTAR
 _LITERAL_GLOB_CHARS = str.maketrans({'[': r'\[', ']': r'\]'})
 
 
-def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
+def does_codeowner_glob_match(glob_pattern: str, path: PurePath) -> bool:
     glob_pattern = glob_pattern.translate(_LITERAL_GLOB_CHARS)
     directory_only = glob_pattern.endswith('/')
     body = glob_pattern.strip('/')
@@ -32,10 +32,12 @@ def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
     if not anchored:
         patterns_to_try = ['**/' + pattern for pattern in patterns_to_try]
 
+    # GitHub's matching does not vary by platform, while wcmatch's defaults do.
+    posix_path = path.as_posix() if isinstance(path, PurePath) else str(path)
     return globmatch(
-        filename=str(path).lstrip('/'),
+        filename=posix_path.lstrip('/'),
         patterns=patterns_to_try,
-        flags=GLOBSTAR | DOTGLOB,
+        flags=GLOBSTAR | DOTGLOB | CASE | FORCEUNIX,
     )
 
 
@@ -61,7 +63,7 @@ def parse_code_owners(
     prev_line_was_a_rule = False
     for line in codeowners_content.splitlines():
         line_number += 1
-        if line.startswith('#'):
+        if line.lstrip().startswith('#'):
             if last_comment is None or prev_line_was_a_rule:
                 last_comment = line
             else:
@@ -79,13 +81,7 @@ def parse_code_owners(
         if inline_comment_pos > -1:
             line = line[0:inline_comment_pos]
         # assume no spaces in file path glob for now
-        space_pos = line.find(' ')
-        if space_pos == -1:
-            glob_pattern = line
-            owners = []
-        else:
-            glob_pattern = line[0:space_pos]
-            owners = line[space_pos:].lstrip().split()
+        glob_pattern, *owners = line.split()
 
         yield CodeOwnerSpecification(
             last_comment, glob_pattern, owners, line_number, codeowners_file_path
