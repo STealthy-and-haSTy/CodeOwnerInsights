@@ -2,7 +2,7 @@ from collections import deque
 from pathlib import Path
 from typing import Iterable, Optional
 from dataclasses import dataclass
-from wcmatch.glob import globmatch, GLOBSTAR
+from wcmatch.glob import globmatch, DOTGLOB, GLOBSTAR
 
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
@@ -15,40 +15,28 @@ _LITERAL_GLOB_CHARS = str.maketrans({'[': r'\[', ']': r'\]'})
 
 def does_codeowner_glob_match(glob_pattern: str, path: Path) -> bool:
     glob_pattern = glob_pattern.translate(_LITERAL_GLOB_CHARS)
+    directory_only = glob_pattern.endswith('/')
+    body = glob_pattern.strip('/')
+    if body == '':
+        return False
+    # A slash at the start or in the middle anchors the pattern to the root;
+    # a trailing slash alone does not.
+    anchored = glob_pattern.startswith('/') or '/' in body
+
     patterns_to_try = list()
-    if glob_pattern.endswith('/'):
-        # a trailing slash matches the directory and its contents
-        patterns_to_try.append(glob_pattern + '**')
-        if not glob_pattern.startswith('/'):
-            # git treats an unslashed directory pattern as matching the
-            # directory wherever it sits in the tree, not only at the root
-            patterns_to_try.append('**/' + glob_pattern + '**')
-    elif glob_pattern == '*':
-        return True
-    elif glob_pattern.startswith('*.') and '/' not in glob_pattern:
-        patterns_to_try.append('**/' + glob_pattern)
-    else:
-        patterns_to_try.append(glob_pattern)
-        if not glob_pattern.endswith('/*'):
-            if '/' in glob_pattern:
-                patterns_to_try.append(glob_pattern + '/*')
-            else:
-                patterns_to_try.append(glob_pattern + '/**')
-        if not glob_pattern.startswith('/'):
-            for pattern in list(patterns_to_try):
-                patterns_to_try.append('**/' + pattern)
+    if not directory_only:
+        patterns_to_try.append(body)
+    # GitHub keeps `docs/*` to the files directly inside `docs`.
+    if directory_only or body.split('/')[-1] != '*':
+        patterns_to_try.append(body + '/**')
+    if not anchored:
+        patterns_to_try = ['**/' + pattern for pattern in patterns_to_try]
 
-    # A leading slash anchors a pattern to the repository root, but the paths
-    # we match against are relative to the root and carry no leading slash, so
-    # wcmatch would treat the slash as anchoring to the start of the string and
-    # reject everything. Try the pattern both ways: the slash-anchored form
-    # guards against a path that happens to start with one, the unslashed form
-    # is what actually matches relative paths.
-    if glob_pattern.startswith('/'):
-        for pattern in list(patterns_to_try):
-            patterns_to_try.append(pattern.lstrip('/'))
-
-    return globmatch(filename=str(path), patterns=patterns_to_try, flags=GLOBSTAR)
+    return globmatch(
+        filename=str(path).lstrip('/'),
+        patterns=patterns_to_try,
+        flags=GLOBSTAR | DOTGLOB,
+    )
 
 
 @dataclass

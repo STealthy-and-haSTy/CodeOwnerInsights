@@ -61,13 +61,16 @@ deliberately *not* the `git check-ignore` convention where a leading slash means
 "do not match". The asymmetry that matters in practice is between anchored and
 unslashed directory patterns — with a `CODEOWNERS` at the repository root,
 `docs/` matches `docs/readme.md` *and* `src/docs/readme.md`, while `/docs/` matches
-`docs/readme.md` but not `src/docs/readme.md`.
+`docs/readme.md` but not `src/docs/readme.md`. A slash in the middle anchors a
+pattern just as a leading one does, so `docs/*` matches `docs/intro.md` but not
+`src/docs/intro.md`. A pattern that matches a directory covers everything beneath it,
+except that `docs/*` stops at the files directly inside `docs`.
 
 Where the two differ, we follow GitHub. `git check-ignore` additionally supports
 `!` to negate a pattern, `\` to escape a leading `#`, and `[ ]` character classes;
 GitHub's `CODEOWNERS` docs list all three as unsupported, and this library does not
-handle them. The two do agree on directory and anchoring rules, which is the part
-`test/test_matching.py` checks against real `git check-ignore` output.
+handle them. `test/test_matching.py` pins the matching rules, checked against how
+GitHub itself resolves the `CODEOWNERS` files of public repositories.
 
 **Locating the file.** `get_code_owners_file(root)` looks in the three places
 GitHub searches, in GitHub's order, and returns the first hit:

@@ -106,12 +106,12 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             '/build/logs/nested/bar.log',
             CodeOwnerSpecification(
-                '# In this example, @doctocat owns any files in the build/logs\n'
-                + '# directory at the root of the repository and any of its\n'
-                + '# subdirectories.',
-                '/build/logs/',
-                ['@doctocat'],
-                30,
+                '# In this example, @octocat owns any file in a `/logs` directory such as\n'
+                + '# `/build/logs`, `/scripts/logs`, and `/deeply/nested/logs`. Any changes\n'
+                + '# in a `/logs` directory will require approval from @octocat.',
+                '**/logs',
+                ['@octocat'],
+                53,
                 fake_path,
             ),
         ),
@@ -170,12 +170,13 @@ codeowners = list(parse_code_owners(fake_path, codeowners_content))
         (
             'a/docs/getting-started.md',
             CodeOwnerSpecification(
-                '# The `docs/*` pattern will match files like\n'
-                + '# `docs/getting-started.md` but not further nested files like\n'
-                + '# `docs/build-app/troubleshooting.md`.',
-                'docs/*',
-                ['docs@example.com'],
-                35,
+                '# These owners will be the default owners for everything in\n'
+                + '# the repo. Unless a later match takes precedence,\n'
+                + '# @global-owner1 and @global-owner2 will be requested for\n'
+                + '# review when someone opens a pull request.',
+                '*',
+                ['@global-owner1', '@global-owner2'],
+                8,  # NOT line 35
                 fake_path,
             ),
         ),

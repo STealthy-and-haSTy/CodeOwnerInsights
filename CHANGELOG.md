@@ -96,6 +96,12 @@ slash was not being stripped before matching (so `/docs/` matched nothing), and 
 unslashed directory pattern only matched at the root. Both are covered by new test cases
 verified against real `git check-ignore` output.
 
+**Anchoring and nesting now match GitHub.** A pattern with a slash in the middle, such
+as `docs/*` or `src/app.py`, matched at any depth; it now matches only from the
+repository root. A pattern without a trailing slash, such as `/build/logs` or `**/logs`,
+matched only one level into a directory of that name; it now covers the whole subtree.
+Wildcards now match dotfiles, so `*.yml` covers `.github/workflows/ci.yml`.
+
 **Comment rendering.** A two-line comment no longer renders as
 `"Backend teamsecond line"`; comments are joined with `" · "`. The old flattening stripped
 `"\n#"` without replacing it with a space.

@@ -63,7 +63,7 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
         (
             '/apps/github/subfolder/some.file',
             '/apps/github',
-            False,
+            True,
         ),
         (
             '/logs/test.log',
@@ -78,7 +78,7 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
         (
             '/logs/subfolder/test.log',
             '**/logs',
-            False,
+            True,
         ),
         # A leading slash anchors a pattern to the repository root, but the paths
         # the plugin matches against are relative to the root and carry no
@@ -196,6 +196,83 @@ from codeownerinsights.codeowners import does_codeowner_glob_match
         (
             'build/logs/test.log',
             '**/logs',
+            True,
+        ),
+        # Checked against GitHub's own resolution of public repositories'
+        # CODEOWNERS files. A slash in the middle anchors a pattern to the root
+        # as a leading one does, and a pattern matching a directory covers
+        # everything beneath it unless its last segment is a lone `*` -- where
+        # GitHub, unlike git's check-ignore, does not match nested files.
+        (
+            'a/docs/getting-started.md',
+            'docs/*',
+            False,
+        ),
+        (
+            'x/Tools/build/compute-changes.py',
+            'Tools/build/compute-changes.py',
+            False,
+        ),
+        (
+            'web/source/Calculator/Service.php',
+            'source/**/Calculator/',
+            False,
+        ),
+        (
+            'source/src/Engage/Calculator/Service.php',
+            'source/**/Calculator/',
+            True,
+        ),
+        (
+            'build/logs/2026/app.log',
+            '/build/logs',
+            True,
+        ),
+        (
+            'lib/_http_dir/sub/x.js',
+            '/lib/_http_*',
+            True,
+        ),
+        (
+            'foo/zzhamtzz/sub/deeper/x.c',
+            '**/*hamt*',
+            True,
+        ),
+        (
+            'lib/internal/streams/sub/x.js',
+            '/lib/internal/streams/*',
+            False,
+        ),
+        (
+            'src/a.txt',
+            '/*',
+            False,
+        ),
+        (
+            'README.md',
+            '*.MD',
+            False,
+        ),
+        # Wildcards match names starting with a dot, as GitHub's own
+        # resolution confirms.
+        (
+            '.github/workflows/ci.yml',
+            '*',
+            True,
+        ),
+        (
+            '.github/workflows/ci.yml',
+            '*.yml',
+            True,
+        ),
+        (
+            'lib/.hidden',
+            '/lib/*',
+            True,
+        ),
+        (
+            'docs/.vitepress/config.ts',
+            'docs/',
             True,
         ),
     ],

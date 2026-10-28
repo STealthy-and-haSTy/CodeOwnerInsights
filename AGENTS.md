@@ -77,23 +77,29 @@ The plugin searches for CODEOWNERS files in this order:
 
 ## Pattern matching (`does_codeowner_glob_match`)
 
-Paths are matched relative to the repository root and carry no leading slash, so
-a leading `/` on a pattern is stripped before matching as well as kept — the
-slashed form anchors to the root, the unslashed form is what actually matches
-relative paths. A trailing `/` matches the directory and its contents.
+Paths are matched relative to the repository root, and a leading `/` is
+stripped from both the pattern and the path before matching.
 
-Two rules that follow GitHub's semantics rather than `git check-ignore`:
+- A slash at the start or in the middle of a pattern anchors it to the root.
+  `/apps/` and `src/apps` match only at the root; `apps/` and `apps` match the
+  directory wherever it sits in the tree. A trailing `/` alone does not anchor.
+- A pattern that matches a directory covers everything beneath it, at any
+  depth: `/build/logs` matches `build/logs/2026/app.log`, and `**/logs` matches
+  `logs/sub/test.log`. A trailing `/` restricts the pattern to directories.
+- The exception is a last segment that is a lone `*`: `docs/*` matches the
+  files directly inside `docs` only. `git check-ignore` matches nested files
+  here, because `docs/*` matches the subdirectory itself.
 
-- An unslashed directory pattern matches the directory wherever it sits in the
-  tree, not only at the root. `apps/` matches `apps/foo.js` *and*
-  `src/apps/foo.js`. A leading `/` anchors to the root, so `/apps/` matches
-  `apps/foo.js` but not `src/apps/foo.js`.
-- `docs/*` matches one level only; `docs/` matches the directory and its
-  subdirectories.
+These rules were checked against GitHub's own resolution. For any public
+repository, `curl -H 'X-Requested-With: XMLHttpRequest'
+https://github.com/<owner>/<repo>/deferred-metadata/<ref>/<path>` returns
+`codeownerInfo.ruleForPathLine`, the line of the CODEOWNERS rule GitHub applies
+to `<path>`, even when nobody is logged in and the path does not exist. That
+makes it a reliable oracle for a new edge case.
 
-These agree with `git check-ignore`, which is the part `test/test_matching.py`
-pins against hardcoded cases (the harness is pure pytest, it never shells out
-to git). The two diverge elsewhere: `git check-ignore` additionally supports
+Apart from `docs/*`, the rules agree with `git check-ignore`;
+`test/test_matching.py` pins them against hardcoded cases (the harness is pure
+pytest, it never shells out to git). The two diverge elsewhere: `git check-ignore` additionally supports
 `!` to negate a pattern, `\` to escape a leading `#`, and `[ ]` character
 classes, all of which GitHub's `CODEOWNERS` docs list as unsupported. Brackets
 are therefore escaped before matching so they're treated literally -- the
