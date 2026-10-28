@@ -60,6 +60,11 @@ setting; anything unrecognised falls back to the default.
 
 ### Changed
 
+**Large CODEOWNERS files no longer slow matching down.** Each rule's pattern is now
+compiled once and reused. Previously wcmatch's 256-entry pattern cache thrashed once a
+file produced more patterns than that, and every rule was re-parsed for every file —
+around 30× slower per rule on a 400-rule file.
+
 **CODEOWNERS glob semantics now follow GitHub's docs, not `git check-ignore`:**
 
 - A leading `/` anchors a pattern to the repository root (`/docs/` matches

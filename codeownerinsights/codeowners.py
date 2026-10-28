@@ -1,8 +1,10 @@
+import functools
+import re
 from collections import deque
 from pathlib import Path, PurePath
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Pattern
 from dataclasses import dataclass
-from wcmatch.glob import globmatch, CASE, DOTGLOB, FORCEUNIX, GLOBSTAR
+from wcmatch.glob import translate, CASE, DOTGLOB, FORCEUNIX, GLOBSTAR
 
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
@@ -13,12 +15,13 @@ from wcmatch.glob import globmatch, CASE, DOTGLOB, FORCEUNIX, GLOBSTAR
 _LITERAL_GLOB_CHARS = str.maketrans({'[': r'\[', ']': r'\]'})
 
 
-def does_codeowner_glob_match(glob_pattern: str, path: PurePath) -> bool:
+@functools.lru_cache(maxsize=None)
+def _compile_codeowner_glob(glob_pattern: str) -> Optional[Pattern[str]]:
     glob_pattern = glob_pattern.translate(_LITERAL_GLOB_CHARS)
     directory_only = glob_pattern.endswith('/')
     body = glob_pattern.strip('/')
     if body == '':
-        return False
+        return None
     # A slash at the start or in the middle anchors the pattern to the root;
     # a trailing slash alone does not.
     anchored = glob_pattern.startswith('/') or '/' in body
@@ -33,12 +36,18 @@ def does_codeowner_glob_match(glob_pattern: str, path: PurePath) -> bool:
         patterns_to_try = ['**/' + pattern for pattern in patterns_to_try]
 
     # GitHub's matching does not vary by platform, while wcmatch's defaults do.
-    posix_path = path.as_posix() if isinstance(path, PurePath) else str(path)
-    return globmatch(
-        filename=posix_path.lstrip('/'),
-        patterns=patterns_to_try,
-        flags=GLOBSTAR | DOTGLOB | CASE | FORCEUNIX,
+    regexes, _ = translate(
+        patterns_to_try, flags=GLOBSTAR | DOTGLOB | CASE | FORCEUNIX
     )
+    return re.compile('|'.join(regexes))
+
+
+def does_codeowner_glob_match(glob_pattern: str, path: PurePath) -> bool:
+    regex = _compile_codeowner_glob(glob_pattern)
+    if regex is None:
+        return False
+    posix_path = path.as_posix() if isinstance(path, PurePath) else str(path)
+    return regex.match(posix_path.lstrip('/')) is not None
 
 
 @dataclass
