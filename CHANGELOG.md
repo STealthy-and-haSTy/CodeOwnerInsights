@@ -3,7 +3,7 @@
 All notable changes to CodeOwnerInsights are documented here.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [0.3.0]
+## [0.3.1]
 
 ### Added
 

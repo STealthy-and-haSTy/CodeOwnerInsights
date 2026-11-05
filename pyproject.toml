@@ -1,6 +1,6 @@
 [project]
 name = "codeownerinsights"
-version = "0.3.0"
+version = "0.3.1"
 description = "Parse GitHub's CODEOWNERS file and resolve code owners for a path, with optional git integration."
 authors = [{ name = "Keith Hall", email = "keith.hall@available.systems" }]
 license = "MIT"
