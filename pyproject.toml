@@ -15,6 +15,9 @@ classifiers = [
     "Topic :: Software Development :: Version Control :: Git",
 ]
 
+[project.scripts]
+codeownerinsights = "codeownerinsights.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/STealthy-and-haSTy/CodeOwnerInsights"
 Repository = "https://github.com/STealthy-and-haSTy/CodeOwnerInsights"

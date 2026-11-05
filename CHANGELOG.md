@@ -7,6 +7,22 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Added
 
+**`codeownerinsights` CLI command.** Prints the owner and deciding rule for each file,
+then the owners a set of files needs. With no arguments it uses the current branch's
+changes against the default branch, including deleted files, because GitHub requests
+code owners for those too. Takes paths or stdin instead, and supports `--base`,
+`--no-fetch`, `--all-rules` and `--json`. Also runs as `python -m codeownerinsights`.
+
+**`diff_filter` parameter** on the changed-files git helpers. Defaults to `ACMR`, as
+before; pass `ACMRD` to include deletions.
+
+### Changed
+### Fixed
+
+## [ST4-v0.2.1]
+
+### Added
+
 **Default-branch diff compares against the real remote baseline.** The plugin now
 fetches `origin/<default>` before computing the merge base, so a stale local default
 branch no longer surfaces unrelated commits as this branch's changes. Fetch failures

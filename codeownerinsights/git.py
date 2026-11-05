@@ -25,7 +25,11 @@ def _git_cmd(git: str, *args: str) -> List[str]:
 
 
 def get_git_changed_files_compared_to_branch(
-    folder_path: Path, base_branch_name: str, filter: Optional[str] = None, git: str = DEFAULT_GIT
+    folder_path: Path,
+    base_branch_name: str,
+    filter: Optional[str] = None,
+    git: str = DEFAULT_GIT,
+    diff_filter: str = 'ACMR',
 ) -> Iterable[Path]:
     """filter can be like --relative=source/ or '*.php' etc."""
     current_branch = get_current_branch(folder_path, git=git)
@@ -42,7 +46,7 @@ def get_git_changed_files_compared_to_branch(
         'diff',
         merge_base.process.stdout.rstrip(),
         '--name-only',
-        '--diff-filter=ACMR',
+        f'--diff-filter={diff_filter}',
     )
     if filter:
         diff_cmd.append(filter)
@@ -59,6 +63,7 @@ def get_git_changed_files_compared_to_default_branch(
     filter: Optional[str] = None,
     fetch_remote: bool = True,
     git: str = DEFAULT_GIT,
+    diff_filter: str = 'ACMR',
 ) -> Iterable[Path]:
     """filter can be like --relative=source/ or '*.php' etc."""
     # Compare against the remote-tracking ref for the default branch (e.g.
@@ -68,7 +73,9 @@ def get_git_changed_files_compared_to_default_branch(
     base_branch_name = get_default_branch_remote_ref(folder_path, fetch_remote, git=git)
     if not base_branch_name:
         return []
-    return get_git_changed_files_compared_to_branch(folder_path, base_branch_name, filter, git=git)
+    return get_git_changed_files_compared_to_branch(
+        folder_path, base_branch_name, filter, git=git, diff_filter=diff_filter
+    )
 
 
 def get_default_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:

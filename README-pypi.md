@@ -80,6 +80,36 @@ get_code_owners_file(Path('.'))
 # .github/CODEOWNERS, CODEOWNERS, or docs/CODEOWNERS
 ```
 
+## Command line
+
+`codeownerinsights` (or `python -m codeownerinsights`) prints the owner of each
+file and the rule that decides it, then the owners those files need. With no
+arguments it uses the files the current branch changes compared with
+`origin/<default>`, deletions included, which are the files GitHub requests a
+pull request's reviewers for.
+
+```sh
+$ codeownerinsights
+source/app/config/routes.php	@org/backend	CODEOWNERS:2 *
+source/src/Model/Identity/User.php	@org/identity	CODEOWNERS:91 source/**/Identity/
+
+Owners:
+  @org/backend (1 file)
+  @org/identity (1 file)
+```
+
+- Pass paths to resolve those files instead, relative to the current directory.
+  `-` reads paths from stdin, so `git diff --name-only main... | codeownerinsights -`
+  works too.
+- `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing
+  `origin/<default>`.
+- `--all-rules` lists every matching rule under each file and marks the one that
+  applies with `*`.
+- `--json` prints the same result as JSON, with an `owners` map from each owner
+  to its files.
+
+The exit code is 2 when the repository has no `CODEOWNERS` file.
+
 ## Git integration
 
 `codeownerinsights.git` shells out to git to find what changed relative to a
@@ -96,7 +126,7 @@ for changed in get_git_changed_files_compared_to_default_branch(Path('.')):
 By default this refreshes `origin/<default>` first, so the result reflects the
 real remote baseline; pass `fetch_remote=False` to skip the network round trip
 and accept a possibly stale baseline. Renamed files are reported under their new
-path only, and deletions are dropped.
+path only, and deletions are dropped unless you pass `diff_filter='ACMRD'`.
 
 Every helper accepts an optional `git=` parameter, so a wrapper can be
 substituted by replacing the leading command token — useful for injecting
