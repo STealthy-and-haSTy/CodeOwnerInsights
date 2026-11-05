@@ -3,7 +3,7 @@
 All notable changes to CodeOwnerInsights are documented here.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [0.3.0]
 
 ### Added
 
@@ -19,7 +19,7 @@ before; pass `ACMRD` to include deletions.
 ### Changed
 ### Fixed
 
-## [ST4-v0.2.1]
+## [0.2.1]
 
 ### Added
 
