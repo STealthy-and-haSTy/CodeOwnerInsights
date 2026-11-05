@@ -101,12 +101,15 @@ Owners:
 - Pass paths to resolve those files instead, relative to the current directory.
   `-` reads paths from stdin, so `git diff --name-only main... | codeownerinsights -`
   works too.
+- `--repo <path>` resolves files against a repository other than the current git
+  top level.
 - `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing
   `origin/<default>`.
 - `--all-rules` lists every matching rule under each file and marks the one that
-  applies with `*`.
+  applies with `*`. With `--json`, this includes `matching_rules` for each file.
 - `--json` prints the same result as JSON, with an `owners` map from each owner
   to its files.
+- `--git <executable>` uses a different git executable (default: `git`).
 
 The exit code is 2 when the repository has no `CODEOWNERS` file.
 
