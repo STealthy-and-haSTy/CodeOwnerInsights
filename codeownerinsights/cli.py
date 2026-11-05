@@ -181,9 +181,9 @@ def main(
         message = f'No CODEOWNERS file found in {repo_root}'
         if args.json:
             json.dump({'error': message}, stderr)
-            stderr.write('\\n')
+            stderr.write('\n')
         else:
-            stderr.write(f'{message}\\n')
+            stderr.write(f'{message}\n')
         return 2
 
     specifications = list(
