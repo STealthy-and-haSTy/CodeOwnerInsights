@@ -1,13 +1,15 @@
 import io
 import json
+import os
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import List, Optional, Tuple
 
 import pytest
 
-from codeownerinsights.cli import main
+from codeownerinsights import cli
+from codeownerinsights.codeowners import CodeOwnerSpecification
 
 CODEOWNERS = """\
 * @org/everyone
@@ -28,7 +30,7 @@ def write_file(folder: Path, relative_path: str, content: str) -> Path:
 
 def run_cli(args: List[str], cwd: Path, stdin: str = '') -> Tuple[int, str, str]:
     out, err = io.StringIO(), io.StringIO()
-    code = main(args, stdin=io.StringIO(stdin), stdout=out, stderr=err, cwd=cwd)
+    code = cli.main(args, stdin=io.StringIO(stdin), stdout=out, stderr=err, cwd=cwd)
     return code, out.getvalue(), err.getvalue()
 
 
@@ -93,12 +95,14 @@ def test_json_output(folder: Path) -> None:
     assert code == 0
     result = json.loads(out)
     assert result['owners'] == {'@org/docs': ['docs/a.md']}
-    assert result['files'][0]['rule'] == {
+    rule = result['files'][0]['rule']
+    assert rule == {
         'pattern': '/docs/',
         'owners': ['@org/docs'],
         'line': 6,
         'codeowners_file': '.github/CODEOWNERS',
     }
+    assert '\\' not in rule['codeowners_file']
     assert 'matching_rules' not in result['files'][0]
 
 
@@ -108,6 +112,26 @@ def test_json_output_all_rules(folder: Path) -> None:
     assert code == 0
     result = json.loads(out)
     assert len(result['files'][0]['matching_rules']) == 2
+    for matching in result['files'][0]['matching_rules']:
+        assert '\\' not in matching['codeowners_file']
+
+
+def windows_relative_to_repo(path: Path, start: Path) -> PureWindowsPath:
+    return PureWindowsPath(r'.github\CODEOWNERS')
+
+
+def test_rule_dict_normalizes_windows_separators(tmp_path: Path, monkeypatch) -> None:
+    spec = CodeOwnerSpecification(
+        line_number=1,
+        glob_pattern='*',
+        owners=['@org/everyone'],
+        codeowners_file_path=tmp_path / '.github' / 'CODEOWNERS',
+        nearest_comment=None,
+    )
+
+    monkeypatch.setattr(cli, '_relative_to_repo', windows_relative_to_repo)
+
+    assert cli._rule_dict(spec, tmp_path)['codeowners_file'] == '.github/CODEOWNERS'
 
 
 def test_fails_without_a_codeowners_file(tmp_path: Path) -> None:

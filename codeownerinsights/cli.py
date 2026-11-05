@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import sys
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Dict, Iterable, List, Optional, Sequence, TextIO
 
 from .codeowners import (
@@ -94,12 +94,16 @@ def _collect_paths(
     return list(changed)
 
 
+def _relative_to_repo(path: Path, repo_root: Path) -> PurePath:
+    return PurePath(os.path.relpath(str(path), str(repo_root)))
+
+
 def _rule_dict(spec: CodeOwnerSpecification, repo_root: Path) -> Dict[str, object]:
     return {
         'pattern': spec.glob_pattern,
         'owners': list(spec.owners),
         'line': spec.line_number,
-        'codeowners_file': os.path.relpath(str(spec.codeowners_file_path), str(repo_root)),
+        'codeowners_file': _relative_to_repo(spec.codeowners_file_path, repo_root).as_posix(),
     }
 
 
