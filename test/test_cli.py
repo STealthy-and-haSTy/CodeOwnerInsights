@@ -99,6 +99,14 @@ def test_json_output(folder: Path) -> None:
         'line': 6,
         'codeowners_file': '.github/CODEOWNERS',
     }
+    assert 'matching_rules' not in result['files'][0]
+
+
+def test_json_output_all_rules(folder: Path) -> None:
+    code, out, _ = run_cli(['--repo', '.', '--json', '--all-rules', 'docs/a.md'], cwd=folder)
+
+    assert code == 0
+    result = json.loads(out)
     assert len(result['files'][0]['matching_rules']) == 2
 
 

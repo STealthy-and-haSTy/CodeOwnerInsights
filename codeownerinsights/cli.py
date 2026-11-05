@@ -104,20 +104,23 @@ def _rule_dict(spec: CodeOwnerSpecification, repo_root: Path) -> Dict[str, objec
 
 
 def _resolve(
-    specifications: Sequence[CodeOwnerSpecification], paths: Iterable[Path], repo_root: Path
+    specifications: Sequence[CodeOwnerSpecification],
+    paths: Iterable[Path],
+    repo_root: Path,
+    all_rules: bool = False,
 ) -> List[Dict[str, object]]:
     results = []
     for path in paths:
         matching = list(get_matching_code_owner_specifications_for_file(specifications, path))
         applied = matching[-1] if matching else None
-        results.append(
-            {
-                'path': path.as_posix(),
-                'owners': list(applied.owners) if applied else [],
-                'rule': _rule_dict(applied, repo_root) if applied else None,
-                'matching_rules': [_rule_dict(spec, repo_root) for spec in matching],
-            }
-        )
+        result = {
+            'path': path.as_posix(),
+            'owners': list(applied.owners) if applied else [],
+            'rule': _rule_dict(applied, repo_root) if applied else None,
+        }
+        if all_rules:
+            result['matching_rules'] = [_rule_dict(spec, repo_root) for spec in matching]
+        results.append(result)
     return results
 
 
@@ -182,7 +185,9 @@ def main(
     specifications = list(
         parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8'))
     )
-    results = _resolve(specifications, _collect_paths(args, cwd, repo_root, stdin), repo_root)
+    results = _resolve(
+        specifications, _collect_paths(args, cwd, repo_root, stdin), repo_root, args.all_rules
+    )
 
     if args.json:
         json.dump({'files': results, 'owners': _owners_summary(results)}, stdout, indent=2)

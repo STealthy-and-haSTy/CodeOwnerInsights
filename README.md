@@ -113,7 +113,7 @@ Owners:
 - `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing
   `origin/<default>`.
 - `--all-rules` lists every matching rule under each file and marks the one that
-  applies with `*`.
+  applies with `*`. With `--json`, this includes `matching_rules` for each file.
 - `--json` prints the same result as JSON, with an `owners` map from each owner
   to its files.
 
