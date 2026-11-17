@@ -204,3 +204,82 @@ def test_without_paths_resolves_the_branch_changes_including_deletions(
         '@org/docs': ['docs/removed.md'],
         '@org/identity': ['source/app/Identity/Added.php'],
     }
+
+
+@pytest.fixture
+def working_tree(repo: Path) -> Path:
+    write_file(repo, '.gitignore', 'build/\n')
+    commit_all(repo, 'ignore build output')
+    write_file(repo, 'docs/staged.md', '# staged\n')
+    git(repo, 'add', 'docs/staged.md')
+    write_file(repo, 'src/kept.py', '# edited\n')
+    write_file(repo, 'source/app/Identity/Added.php', '<?php // edited\n')
+    git(repo, 'rm', '--cached', '-q', 'source/app/Identity/Added.php')
+    write_file(repo, 'notes/untracked.txt', 'new\n')
+    write_file(repo, 'build/ignored.txt', 'ignored\n')
+    return repo
+
+
+def changed_paths(out: str) -> List[str]:
+    return [file['path'] for file in json.loads(out)['files']]
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_staged_resolves_the_index_changes_including_deletions(working_tree: Path) -> None:
+    code, out, _ = run_cli(['--json', '--staged'], cwd=working_tree / 'src')
+
+    assert code == 0
+    assert changed_paths(out) == ['docs/staged.md', 'source/app/Identity/Added.php']
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_unstaged_resolves_working_tree_and_untracked_files(working_tree: Path) -> None:
+    code, out, _ = run_cli(['--json', '--unstaged'], cwd=working_tree / 'src')
+
+    assert code == 0
+    assert changed_paths(out) == [
+        'notes/untracked.txt',
+        'source/app/Identity/Added.php',
+        'src/kept.py',
+    ]
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_staged_and_unstaged_together_list_each_file_once(working_tree: Path) -> None:
+    code, out, _ = run_cli(['--json', '--staged', '--unstaged'], cwd=working_tree)
+
+    assert code == 0
+    assert changed_paths(out) == [
+        'docs/staged.md',
+        'notes/untracked.txt',
+        'source/app/Identity/Added.php',
+        'src/kept.py',
+    ]
+
+
+@pytest.mark.parametrize(
+    'args, conflict',
+    [
+        (['--staged', 'src/app.py'], 'paths'),
+        (['--unstaged', '-'], 'paths'),
+        (['--staged', '--base', 'main'], '--base'),
+        (['--unstaged', '--no-fetch'], '--no-fetch'),
+    ],
+)
+def test_working_tree_flags_reject_other_sources(
+    folder: Path, capsys, args: List[str], conflict: str
+) -> None:
+    with pytest.raises(SystemExit) as exit_info:
+        run_cli(['--repo', '.'] + args, cwd=folder)
+
+    assert exit_info.value.code == 2
+    assert f'cannot be combined with {conflict}' in capsys.readouterr().err
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_says_so_when_there_are_no_files(repo: Path) -> None:
+    code, out, err = run_cli(['--staged'], cwd=repo)
+
+    assert code == 0
+    assert out == ''
+    assert err == 'No files to resolve\n'

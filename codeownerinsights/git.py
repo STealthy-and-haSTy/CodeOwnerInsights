@@ -78,6 +78,38 @@ def get_git_changed_files_compared_to_default_branch(
     )
 
 
+def _null_separated_paths(summary: ShellExecutionSummary) -> List[Path]:
+    if not summary or summary.process.returncode != 0:
+        return []
+    return [Path(file) for file in summary.process.stdout.split('\0') if file]
+
+
+def get_git_staged_files(
+    folder_path: Path, git: str = DEFAULT_GIT, diff_filter: str = 'ACMR'
+) -> List[Path]:
+    return _null_separated_paths(
+        exec_command(
+            folder_path,
+            _git_cmd(git, 'diff', '--cached', '--name-only', '-z', f'--diff-filter={diff_filter}'),
+        )
+    )
+
+
+def get_git_unstaged_files(
+    folder_path: Path, git: str = DEFAULT_GIT, diff_filter: str = 'ACMR'
+) -> List[Path]:
+    """Return tracked files changed in the working tree, then untracked files that are not ignored."""
+    tracked = _null_separated_paths(
+        exec_command(
+            folder_path, _git_cmd(git, 'diff', '--name-only', '-z', f'--diff-filter={diff_filter}')
+        )
+    )
+    untracked = _null_separated_paths(
+        exec_command(folder_path, _git_cmd(git, 'ls-files', '--others', '--exclude-standard', '-z'))
+    )
+    return tracked + untracked
+
+
 def get_default_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:
     result = exec_command(folder_path, _git_cmd(git, 'rev-parse', '--abbrev-ref', 'origin/HEAD'))
     if result and result.process.returncode == 0:

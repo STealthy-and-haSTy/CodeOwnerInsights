@@ -110,6 +110,10 @@ Owners:
 - Pass paths to resolve those files instead, relative to the current directory.
   `-` reads paths from stdin, so `git diff --name-only main... | codeownerinsights -`
   works too.
+- `--staged` resolves the files changed in the index instead, and `--unstaged`
+  the files changed in the working tree plus untracked files that are not
+  ignored. Pass both for every uncommitted change. Neither combines with paths,
+  `--base` or `--no-fetch`.
 - `--repo <path>` resolves files against a repository other than the current git
   top level.
 - `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing

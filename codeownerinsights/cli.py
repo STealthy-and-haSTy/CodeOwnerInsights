@@ -16,6 +16,8 @@ from .git import (
     exec_command,
     get_git_changed_files_compared_to_branch,
     get_git_changed_files_compared_to_default_branch,
+    get_git_staged_files,
+    get_git_unstaged_files,
 )
 
 PR_DIFF_FILTER = 'ACMRD'
@@ -28,6 +30,19 @@ def _build_parser() -> argparse.ArgumentParser:
             'Resolve the CODEOWNERS owners of files the way GitHub does. '
             'With no paths, use the files the current branch changes compared with the '
             "default branch, which are the files GitHub requests a pull request's reviewers for."
+        ),
+    )
+    parser.add_argument(
+        '--staged',
+        action='store_true',
+        help='use the files changed in the index instead of the branch changes',
+    )
+    parser.add_argument(
+        '--unstaged',
+        action='store_true',
+        help=(
+            'use the files changed in the working tree, and untracked files, instead of the '
+            'branch changes; combine with --staged for every uncommitted change'
         ),
     )
     parser.add_argument(
@@ -71,9 +86,30 @@ def _repo_relative(path: str, cwd: Path, repo_root: Path) -> Path:
     return Path(os.path.relpath(os.path.normpath(str(absolute)), str(repo_root)))
 
 
+def _check_sources(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    working_tree = [
+        flag for flag, on in (('--staged', args.staged), ('--unstaged', args.unstaged)) if on
+    ]
+    if not working_tree:
+        return
+    if args.paths:
+        parser.error(f'{working_tree[0]} cannot be combined with paths')
+    if args.base or args.no_fetch:
+        other = '--base' if args.base else '--no-fetch'
+        parser.error(f'{working_tree[0]} cannot be combined with {other}')
+
+
 def _collect_paths(
     args: argparse.Namespace, cwd: Path, repo_root: Path, stdin: TextIO
 ) -> List[Path]:
+    if args.staged or args.unstaged:
+        changed: List[Path] = []
+        if args.staged:
+            changed += get_git_staged_files(repo_root, git=args.git, diff_filter=PR_DIFF_FILTER)
+        if args.unstaged:
+            changed += get_git_unstaged_files(repo_root, git=args.git, diff_filter=PR_DIFF_FILTER)
+        return sorted(set(changed))
+
     if args.paths:
         raw: List[str] = []
         for path in args.paths:
@@ -171,7 +207,9 @@ def main(
     stderr: TextIO = sys.stderr,
     cwd: Optional[Path] = None,
 ) -> int:
-    args = _build_parser().parse_args(argv)
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+    _check_sources(parser, args)
     cwd = (cwd or Path.cwd()).resolve()
     repo_root = (args.repo if args.repo.is_absolute() else cwd / args.repo) if args.repo else None
     repo_root = (repo_root or _find_repo_root(cwd, args.git)).resolve()
@@ -196,6 +234,8 @@ def main(
     if args.json:
         json.dump({'files': results, 'owners': _owners_summary(results)}, stdout, indent=2)
         stdout.write('\n')
-    else:
+    elif results:
         _print_text(results, args.all_rules, stdout)
+    else:
+        stderr.write('No files to resolve\n')
     return 0

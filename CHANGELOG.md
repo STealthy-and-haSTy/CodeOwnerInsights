@@ -3,6 +3,17 @@
 All notable changes to CodeOwnerInsights are documented here.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+**`--staged` and `--unstaged` CLI flags.** Resolve the owners of the index changes
+or the working-tree changes (untracked files included), or of both together,
+instead of the branch changes. Text output says `No files to resolve` on stderr when
+there are none.
+
+**`get_git_staged_files()` and `get_git_unstaged_files()`** git helpers.
+
 ## [0.3.1]
 
 ### Added
