@@ -3,7 +3,7 @@
 All notable changes to CodeOwnerInsights are documented here.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
-## [Unreleased]
+## [0.4.0]
 
 ### Added
 
@@ -20,6 +20,9 @@ applies to them, instead of one file per line. Text output only.
 **Coloured CLI output.** Owners, rules and unowned files stand out on a terminal.
 `--color auto|always|never` controls it; `auto` honours `NO_COLOR` and leaves piped
 output plain. JSON is never coloured.
+
+### Changed
+### Fixed
 
 ## [0.3.1]
 
