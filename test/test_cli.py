@@ -337,3 +337,69 @@ def test_group_by_owner_leaves_json_unchanged(folder: Path) -> None:
     _, plain, _ = run_cli(['--repo', '.', '--json', 'docs/a.md'], cwd=folder)
 
     assert grouped == plain
+
+
+class Terminal(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+def run_cli_on(out: io.StringIO, args: List[str], cwd: Path, environ: Optional[dict] = None) -> str:
+    cli.main(
+        args, stdin=io.StringIO(), stdout=out, stderr=io.StringIO(), cwd=cwd, environ=environ or {}
+    )
+    return out.getvalue()
+
+
+@pytest.mark.parametrize(
+    'stdout, color, environ, coloured',
+    [
+        (Terminal, 'auto', {}, True),
+        (Terminal, 'auto', {'NO_COLOR': '1'}, False),
+        (Terminal, 'auto', {'NO_COLOR': ''}, True),
+        (Terminal, 'never', {}, False),
+        (io.StringIO, 'auto', {}, False),
+        (io.StringIO, 'always', {'NO_COLOR': '1'}, True),
+    ],
+)
+@pytest.mark.parametrize('group_by', ['file', 'owner'])
+def test_colour_choice(
+    folder: Path, stdout, color: str, environ: dict, coloured: bool, group_by: str
+) -> None:
+    out = run_cli_on(
+        stdout(),
+        ['--repo', '.', '--color', color, '--group-by', group_by, 'docs/a.md'],
+        folder,
+        environ,
+    )
+
+    assert ('\033[' in out) is coloured
+
+
+def test_colour_styles_owners_and_rules(folder: Path) -> None:
+    out = run_cli_on(io.StringIO(), ['--repo', '.', '--color', 'always', 'docs/a.md'], folder)
+
+    assert out.splitlines()[0] == (
+        'docs/a.md\t\033[1;36m@org/docs\033[0m\t\033[2m.github/CODEOWNERS:6 /docs/\033[0m'
+    )
+
+
+def test_colour_keeps_grouped_rules_aligned(folder: Path) -> None:
+    out = run_cli_on(
+        io.StringIO(),
+        ['--repo', '.', '--color', 'always', '--group-by', 'owner', 'docs/a.md', 'docs/longer.md'],
+        folder,
+    )
+
+    assert out.splitlines()[1:3] == [
+        '  docs/a.md       \033[2m.github/CODEOWNERS:6 /docs/\033[0m',
+        '  docs/longer.md  \033[2m.github/CODEOWNERS:6 /docs/\033[0m',
+    ]
+
+
+def test_json_is_never_coloured(folder: Path) -> None:
+    out = run_cli_on(
+        Terminal(), ['--repo', '.', '--json', '--color', 'always', 'docs/a.md'], folder
+    )
+
+    assert '\033[' not in out

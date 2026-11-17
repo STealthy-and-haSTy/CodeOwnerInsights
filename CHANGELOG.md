@@ -17,6 +17,10 @@ there are none.
 **`--group-by owner` CLI flag.** Lists the files under each set of owners that
 applies to them, instead of one file per line. Text output only.
 
+**Coloured CLI output.** Owners, rules and unowned files stand out on a terminal.
+`--color auto|always|never` controls it; `auto` honours `NO_COLOR` and leaves piped
+output plain. JSON is never coloured.
+
 ## [0.3.1]
 
 ### Added

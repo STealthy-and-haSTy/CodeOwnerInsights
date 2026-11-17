@@ -132,6 +132,9 @@ Owners:
   @org/identity (1 file)
     source/src/Model/Identity/User.php  CODEOWNERS:91 source/**/Identity/
   ```
+- `--color auto|always|never` colours the text output. `auto`, the default,
+  colours it only when stdout is a terminal and `NO_COLOR` is not set, so
+  pipes get plain text.
 - `--json` prints the same result as JSON, with an `owners` map from each owner
   to its files.
 - `--git <executable>` uses a different git executable (default: `git`).

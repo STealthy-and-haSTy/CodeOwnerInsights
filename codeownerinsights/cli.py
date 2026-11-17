@@ -3,7 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path, PurePath
-from typing import Dict, Iterable, List, Optional, Sequence, TextIO, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, TextIO, Tuple
 
 from .codeowners import (
     CodeOwnerSpecification,
@@ -76,6 +76,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help=(
             'text output only: list one file per line (file, the default), or list the files '
             'under each set of owners that applies to them (owner)'
+        ),
+    )
+    parser.add_argument(
+        '--color',
+        choices=('auto', 'always', 'never'),
+        default='auto',
+        help=(
+            'colour text output: always, never, or auto (the default) when stdout is a terminal '
+            'and NO_COLOR is not set'
         ),
     )
     parser.add_argument('--json', action='store_true', help='print JSON instead of text')
@@ -185,39 +194,74 @@ def _describe_rule(rule: Dict[str, object]) -> str:
     return f'{rule["codeowners_file"]}:{rule["line"]} {rule["pattern"]}'
 
 
+class _Style:
+    def __init__(self, enabled: bool) -> None:
+        self.enabled = enabled
+
+    def _wrap(self, code: str, text: str) -> str:
+        return f'\033[{code}m{text}\033[0m' if self.enabled and text else text
+
+    def owners(self, text: str) -> str:
+        return self._wrap('1;36', text)
+
+    def rule(self, text: str) -> str:
+        return self._wrap('2', text)
+
+    def unowned(self, text: str) -> str:
+        return self._wrap('33', text)
+
+    def heading(self, text: str) -> str:
+        return self._wrap('1', text)
+
+
+def _use_color(choice: str, stdout: TextIO, environ: Mapping[str, str]) -> bool:
+    if choice != 'auto':
+        return choice == 'always'
+    isatty = getattr(stdout, 'isatty', None)
+    return bool(isatty and isatty()) and not environ.get('NO_COLOR')
+
+
 def _files(count: int) -> str:
     return f'{count} file{"s" if count != 1 else ""}'
 
 
-def _print_matching_rules(result: Dict[str, object], indent: str, out: TextIO) -> None:
+def _print_matching_rules(
+    result: Dict[str, object], indent: str, style: _Style, out: TextIO
+) -> None:
     for matching in result['matching_rules']:  # type: ignore[union-attr]
-        marker = '*' if matching == result['rule'] else ' '
-        owners = ' '.join(matching['owners'])
-        out.write(f'{indent}{marker} {_describe_rule(matching)} -> {owners}\n')
+        line = f'{_describe_rule(matching)} -> {" ".join(matching["owners"])}'
+        if matching == result['rule']:
+            out.write(f'{indent}* {line}\n')
+        else:
+            out.write(f'{indent}  {style.rule(line)}\n')
 
 
-def _print_text(results: List[Dict[str, object]], all_rules: bool, out: TextIO) -> None:
+def _print_text(
+    results: List[Dict[str, object]], all_rules: bool, style: _Style, out: TextIO
+) -> None:
     for result in results:
         rule = result['rule']
         if rule is None:
-            out.write(f'{result["path"]}\t(no owner)\n')
+            out.write(f'{result["path"]}\t{style.unowned("(no owner)")}\n')
         else:
-            owners = ' '.join(result['owners'])  # type: ignore[arg-type]
-            out.write(f'{result["path"]}\t{owners}\t{_describe_rule(rule)}\n')  # type: ignore[arg-type]
+            owners = style.owners(' '.join(result['owners']))  # type: ignore[arg-type]
+            out.write(f'{result["path"]}\t{owners}\t{style.rule(_describe_rule(rule))}\n')  # type: ignore[arg-type]
         if all_rules:
-            _print_matching_rules(result, '  ', out)
+            _print_matching_rules(result, '  ', style, out)
 
     summary = _owners_summary(results)
     if summary:
-        out.write('\nOwners:\n')
+        out.write(f'\n{style.heading("Owners:")}\n')
         for owner, paths in summary.items():
-            out.write(f'  {owner} ({_files(len(paths))})\n')
+            out.write(f'  {style.owners(owner)} ({_files(len(paths))})\n')
     unowned = [result['path'] for result in results if result['rule'] is None]
     if unowned:
-        out.write(f'\nNo owner: {_files(len(unowned))}\n')
+        out.write(f'\n{style.unowned("No owner:")} {_files(len(unowned))}\n')
 
 
-def _print_text_by_owner(results: List[Dict[str, object]], all_rules: bool, out: TextIO) -> None:
+def _print_text_by_owner(
+    results: List[Dict[str, object]], all_rules: bool, style: _Style, out: TextIO
+) -> None:
     groups: Dict[Tuple[str, ...], List[Dict[str, object]]] = {}
     for result in results:
         groups.setdefault(tuple(result['owners']), []).append(result)  # type: ignore[arg-type]
@@ -225,7 +269,7 @@ def _print_text_by_owner(results: List[Dict[str, object]], all_rules: bool, out:
 
     for index, owners in enumerate(sorted(groups, key=lambda owners: (not owners, owners))):
         members = groups[owners]
-        heading = ' '.join(owners) if owners else '(no owner)'
+        heading = style.owners(' '.join(owners)) if owners else style.unowned('(no owner)')
         if index:
             out.write('\n')
         out.write(f'{heading} ({_files(len(members))})\n')
@@ -234,9 +278,10 @@ def _print_text_by_owner(results: List[Dict[str, object]], all_rules: bool, out:
             if rule is None:
                 out.write(f'  {result["path"]}\n')
             else:
-                out.write(f'  {str(result["path"]):<{width}}  {_describe_rule(rule)}\n')  # type: ignore[arg-type]
+                path = f'{str(result["path"]):<{width}}'
+                out.write(f'  {path}  {style.rule(_describe_rule(rule))}\n')  # type: ignore[arg-type]
             if all_rules:
-                _print_matching_rules(result, '    ', out)
+                _print_matching_rules(result, '    ', style, out)
 
 
 def main(
@@ -245,6 +290,7 @@ def main(
     stdout: TextIO = sys.stdout,
     stderr: TextIO = sys.stderr,
     cwd: Optional[Path] = None,
+    environ: Optional[Mapping[str, str]] = None,
 ) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -273,10 +319,10 @@ def main(
     if args.json:
         json.dump({'files': results, 'owners': _owners_summary(results)}, stdout, indent=2)
         stdout.write('\n')
-    elif results and args.group_by == 'owner':
-        _print_text_by_owner(results, args.all_rules, stdout)
     elif results:
-        _print_text(results, args.all_rules, stdout)
+        style = _Style(_use_color(args.color, stdout, os.environ if environ is None else environ))
+        printer = _print_text_by_owner if args.group_by == 'owner' else _print_text
+        printer(results, args.all_rules, style, stdout)
     else:
         stderr.write('No files to resolve\n')
     return 0
