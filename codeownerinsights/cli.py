@@ -3,7 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path, PurePath
-from typing import Dict, Iterable, List, Optional, Sequence, TextIO
+from typing import Dict, Iterable, List, Optional, Sequence, TextIO, Tuple
 
 from .codeowners import (
     CodeOwnerSpecification,
@@ -68,6 +68,15 @@ def _build_parser() -> argparse.ArgumentParser:
         '--all-rules',
         action='store_true',
         help='also list every rule that matches each file, not only the one that applies',
+    )
+    parser.add_argument(
+        '--group-by',
+        choices=('file', 'owner'),
+        default='file',
+        help=(
+            'text output only: list one file per line (file, the default), or list the files '
+            'under each set of owners that applies to them (owner)'
+        ),
     )
     parser.add_argument('--json', action='store_true', help='print JSON instead of text')
     parser.add_argument('--git', default=DEFAULT_GIT, help='git executable (default: git)')
@@ -176,6 +185,17 @@ def _describe_rule(rule: Dict[str, object]) -> str:
     return f'{rule["codeowners_file"]}:{rule["line"]} {rule["pattern"]}'
 
 
+def _files(count: int) -> str:
+    return f'{count} file{"s" if count != 1 else ""}'
+
+
+def _print_matching_rules(result: Dict[str, object], indent: str, out: TextIO) -> None:
+    for matching in result['matching_rules']:  # type: ignore[union-attr]
+        marker = '*' if matching == result['rule'] else ' '
+        owners = ' '.join(matching['owners'])
+        out.write(f'{indent}{marker} {_describe_rule(matching)} -> {owners}\n')
+
+
 def _print_text(results: List[Dict[str, object]], all_rules: bool, out: TextIO) -> None:
     for result in results:
         rule = result['rule']
@@ -185,19 +205,38 @@ def _print_text(results: List[Dict[str, object]], all_rules: bool, out: TextIO) 
             owners = ' '.join(result['owners'])  # type: ignore[arg-type]
             out.write(f'{result["path"]}\t{owners}\t{_describe_rule(rule)}\n')  # type: ignore[arg-type]
         if all_rules:
-            for matching in result['matching_rules']:  # type: ignore[union-attr]
-                marker = '*' if matching == rule else ' '
-                owners = ' '.join(matching['owners'])
-                out.write(f'  {marker} {_describe_rule(matching)} -> {owners}\n')
+            _print_matching_rules(result, '  ', out)
 
     summary = _owners_summary(results)
     if summary:
         out.write('\nOwners:\n')
         for owner, paths in summary.items():
-            out.write(f'  {owner} ({len(paths)} file{"s" if len(paths) != 1 else ""})\n')
+            out.write(f'  {owner} ({_files(len(paths))})\n')
     unowned = [result['path'] for result in results if result['rule'] is None]
     if unowned:
-        out.write(f'\nNo owner: {len(unowned)} file{"s" if len(unowned) != 1 else ""}\n')
+        out.write(f'\nNo owner: {_files(len(unowned))}\n')
+
+
+def _print_text_by_owner(results: List[Dict[str, object]], all_rules: bool, out: TextIO) -> None:
+    groups: Dict[Tuple[str, ...], List[Dict[str, object]]] = {}
+    for result in results:
+        groups.setdefault(tuple(result['owners']), []).append(result)  # type: ignore[arg-type]
+    width = max(len(str(result['path'])) for result in results)
+
+    for index, owners in enumerate(sorted(groups, key=lambda owners: (not owners, owners))):
+        members = groups[owners]
+        heading = ' '.join(owners) if owners else '(no owner)'
+        if index:
+            out.write('\n')
+        out.write(f'{heading} ({_files(len(members))})\n')
+        for result in members:
+            rule = result['rule']
+            if rule is None:
+                out.write(f'  {result["path"]}\n')
+            else:
+                out.write(f'  {str(result["path"]):<{width}}  {_describe_rule(rule)}\n')  # type: ignore[arg-type]
+            if all_rules:
+                _print_matching_rules(result, '    ', out)
 
 
 def main(
@@ -234,6 +273,8 @@ def main(
     if args.json:
         json.dump({'files': results, 'owners': _owners_summary(results)}, stdout, indent=2)
         stdout.write('\n')
+    elif results and args.group_by == 'owner':
+        _print_text_by_owner(results, args.all_rules, stdout)
     elif results:
         _print_text(results, args.all_rules, stdout)
     else:

@@ -14,6 +14,9 @@ there are none.
 
 **`get_git_staged_files()` and `get_git_unstaged_files()`** git helpers.
 
+**`--group-by owner` CLI flag.** Lists the files under each set of owners that
+applies to them, instead of one file per line. Text output only.
+
 ## [0.3.1]
 
 ### Added

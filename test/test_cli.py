@@ -283,3 +283,57 @@ def test_says_so_when_there_are_no_files(repo: Path) -> None:
     assert code == 0
     assert out == ''
     assert err == 'No files to resolve\n'
+
+
+def test_group_by_owner_lists_files_under_each_owner_set(tmp_path: Path) -> None:
+    write_file(tmp_path, 'CODEOWNERS', '* @org/everyone\n/docs/ @org/docs @org/writers\n/vendor/\n')
+
+    code, out, _ = run_cli(
+        [
+            '--repo',
+            '.',
+            '--group-by',
+            'owner',
+            'vendor/lib.py',
+            'docs/a.md',
+            'src/app.py',
+            'docs/b.md',
+        ],
+        cwd=tmp_path,
+    )
+
+    assert code == 0
+    assert out.splitlines() == [
+        '@org/docs @org/writers (2 files)',
+        '  docs/a.md      CODEOWNERS:2 /docs/',
+        '  docs/b.md      CODEOWNERS:2 /docs/',
+        '',
+        '@org/everyone (1 file)',
+        '  src/app.py     CODEOWNERS:1 *',
+        '',
+        '(no owner) (1 file)',
+        '  vendor/lib.py  CODEOWNERS:3 /vendor/',
+    ]
+
+
+def test_group_by_owner_with_all_rules(folder: Path) -> None:
+    code, out, _ = run_cli(
+        ['--repo', '.', '--group-by', 'owner', '--all-rules', 'docs/a.md'], cwd=folder
+    )
+
+    assert code == 0
+    assert out.splitlines() == [
+        '@org/docs (1 file)',
+        '  docs/a.md  .github/CODEOWNERS:6 /docs/',
+        '      .github/CODEOWNERS:1 * -> @org/everyone',
+        '    * .github/CODEOWNERS:6 /docs/ -> @org/docs',
+    ]
+
+
+def test_group_by_owner_leaves_json_unchanged(folder: Path) -> None:
+    _, grouped, _ = run_cli(
+        ['--repo', '.', '--json', '--group-by', 'owner', 'docs/a.md'], cwd=folder
+    )
+    _, plain, _ = run_cli(['--repo', '.', '--json', 'docs/a.md'], cwd=folder)
+
+    assert grouped == plain

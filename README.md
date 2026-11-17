@@ -120,6 +120,18 @@ Owners:
   `origin/<default>`.
 - `--all-rules` lists every matching rule under each file and marks the one that
   applies with `*`. With `--json`, this includes `matching_rules` for each file.
+- `--group-by owner` lists the files under each set of owners that applies to
+  them, with the deciding rule beside each file. A review from any one owner in
+  a set covers its files. Text output only.
+
+  ```sh
+  $ codeownerinsights --group-by owner
+  @org/backend (1 file)
+    source/app/config/routes.php        CODEOWNERS:2 *
+
+  @org/identity (1 file)
+    source/src/Model/Identity/User.php  CODEOWNERS:91 source/**/Identity/
+  ```
 - `--json` prints the same result as JSON, with an `owners` map from each owner
   to its files.
 - `--git <executable>` uses a different git executable (default: `git`).
