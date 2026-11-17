@@ -138,7 +138,15 @@ def test_fails_without_a_codeowners_file(tmp_path: Path) -> None:
 
     assert code == 2
     assert out == ''
-    assert 'No CODEOWNERS file found' in err
+    assert err == f'No CODEOWNERS file found in {tmp_path.resolve()}\n'
+
+
+def test_fails_without_a_codeowners_file_as_json(tmp_path: Path) -> None:
+    code, _, err = run_cli(['--repo', '.', '--json', 'src/app.py'], cwd=tmp_path)
+
+    assert code == 2
+    assert err.endswith('}\n')
+    assert 'No CODEOWNERS file found' in json.loads(err)['error']
 
 
 def git(cwd: Path, *args: str) -> str:
