@@ -22,14 +22,14 @@ This repository contains a Sublime Text plugin for identifying code owners from 
 - Core parsing logic in `codeownerinsights/codeowners.py` and `codeownerinsights/git.py` is framework-agnostic and independently testable
 - No Sublime Text APIs outside `subl_codeowners.py` - keeps business logic pure
 - Keep any logic worth asserting on out of `subl_codeowners.py` and in a pure module, so it can be unit tested. `coercion.py` exists because `subl_codeowners.py` cannot be imported outside the editor
-- All packages in the Python 3.8 plugin host share a single interpreter process, so never mutate process-global state. In particular `git.py` must not call `os.chdir()`: it would change the working directory for every other package for the rest of the session. Pass `cwd=` to `subprocess.run()` instead.
+- All packages in Sublime Text's plugin host share a single interpreter process, so never mutate process-global state. In particular `git.py` must not call `os.chdir()`: it would change the working directory for every other package for the rest of the session. Pass `cwd=` to `subprocess.run()` instead.
 - Uses `wcmatch` for GitHub-compatible glob pattern matching
 - Sublime Text reloads only `subl_codeowners.py` when a file changes, not the modules it imports. So before importing the library, `subl_codeowners.py` removes this package's own `codeownerinsights` modules from `sys.modules`, and library changes load on the next reload instead of failing against stale modules. Keep that loop above the library imports. It touches only this package's module names, so it does not affect other packages
 - The library is published to PyPI as `codeownerinsights`, so the package directory is the source of truth. The plugin imports from it via relative imports (`from .codeownerinsights.codeowners import ...`).
 
 ## Runtime Environment
 
-The plugin runs inside Sublime Text's Python 3.8 plugin host, and `.python-version` pins 3.8. The development virtualenv may be a newer Python, so keep code to syntax and stdlib APIs available in 3.8.
+The plugin runs inside Sublime Text's Python 3.14 plugin host (Sublime Text 4205 or later), which `.python-version` selects. The library is published for Python 3.11 or later (`requires-python` in `pyproject.toml`), so keep code under `codeownerinsights/` to syntax and stdlib APIs available in 3.11. Ruff reads its target version from `requires-python`.
 
 ## Development Commands
 

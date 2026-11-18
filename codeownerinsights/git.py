@@ -203,8 +203,6 @@ def exec_command(
 # returns the completed subpress and how long it took to complete as a float
 def execute_with_stdin(cmd, shell, text, cwd: Optional[Path] = None) -> ShellExecutionSummary:
     before = time.perf_counter()
-    # https://docs.python.org/3/library/subprocess.html#subprocess.run - new in version 3.5
-    # therefore, you need to be using ST build >= 4050 and the package should be opting in to Python 3.8 plugin host
     p = run(cmd, shell=shell, capture_output=True, input=text, encoding='utf-8', cwd=cwd)
     after = time.perf_counter()
     return ShellExecutionSummary(p, after - before)

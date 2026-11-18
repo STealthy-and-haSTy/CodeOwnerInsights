@@ -8,7 +8,7 @@ wins. Pure Python, no editor dependency.
 pip install codeownerinsights
 ```
 
-Requires Python 3.8 or newer. The only runtime dependency is
+Requires Python 3.11 or newer. The only runtime dependency is
 [`wcmatch`](https://pypi.org/project/wcmatch/), for GitHub-compatible glob
 matching.
 
