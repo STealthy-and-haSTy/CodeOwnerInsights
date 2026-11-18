@@ -4,7 +4,13 @@ from typing import Iterable, Optional, List, Tuple
 from pathlib import Path
 import os
 import html
+import sys
 from dataclasses import dataclass
+
+# Sublime Text reloads only this module, so remove the cached library modules to load their changes too.
+_LIBRARY = f'{__package__}.codeownerinsights'
+for _name in [name for name in sys.modules if name == _LIBRARY or name.startswith(f'{_LIBRARY}.')]:
+    del sys.modules[_name]
 
 from .codeownerinsights.coercion import coerce_bool
 from .codeownerinsights.codeowners import (
