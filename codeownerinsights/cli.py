@@ -54,6 +54,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="files to resolve, relative to the current directory; '-' reads paths from stdin",
     )
     parser.add_argument(
+        '--root-relative',
+        action='store_true',
+        help='paths, including those read from stdin, are relative to the repository root, as git prints them',
+    )
+    parser.add_argument(
+        '-z',
+        dest='null_separated',
+        action='store_true',
+        help="paths read from stdin are separated by NUL characters, as git's -z prints them",
+    )
+    parser.add_argument(
         '--repo',
         type=Path,
         help='repository root (default: the git top level of the current directory)',
@@ -157,6 +168,11 @@ def _check_sources(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         )
         if on
     ]
+    if (args.root_relative or args.null_separated) and not args.paths:
+        flag = '--root-relative' if args.root_relative else '-z'
+        parser.error(f'{flag} needs paths')
+    if args.null_separated and '-' not in args.paths:
+        parser.error("-z needs '-' to read paths from stdin")
     if working_tree and args.paths:
         parser.error(f'{working_tree[0]} cannot be combined with paths')
     if branch_only and (working_tree or args.paths):
@@ -197,11 +213,14 @@ def _collect_paths(
     if args.paths:
         raw: List[str] = []
         for path in args.paths:
-            if path == '-':
+            if path == '-' and args.null_separated:
+                raw.extend(entry for entry in stdin.read().split('\0') if entry)
+            elif path == '-':
                 raw.extend(line.strip() for line in stdin if line.strip())
             else:
                 raw.append(path)
-        return [_repo_relative(path, cwd, repo_root) for path in raw]
+        relative_to = repo_root if args.root_relative else cwd
+        return [_repo_relative(path, relative_to, repo_root) for path in raw]
 
     assert base is not None
     changed += get_git_changed_files_compared_to_branch(

@@ -110,8 +110,11 @@ Owners:
 ```
 
 - Pass paths to resolve those files instead, relative to the current directory.
-  `-` reads paths from stdin, so `git diff --name-only main... | codeownerinsights -`
-  works too.
+  `-` reads paths from stdin, one per line.
+- `--root-relative` takes the paths as relative to the repository root, which
+  is how git prints them, and `-z` reads NUL-separated paths from stdin. So
+  `git diff --name-only -z main... | codeownerinsights --root-relative -z -`
+  works from any directory, whatever the file names contain.
 - `--with-uncommitted` adds uncommitted changes, untracked files included, to
   the branch changes: the files the pull request would change once everything
   is committed.

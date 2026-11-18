@@ -11,6 +11,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 included, to the branch changes, for the files a pull request would change once
 everything is committed.
 
+**`--root-relative` and `-z` CLI flags.** Take paths as relative to the repository
+root, and read NUL-separated paths from stdin, so git's `--name-only -z` output pipes
+in from any directory.
+
 **`--owner` and `--not-owner` CLI flags.** Keep or leave out the files an owner
 covers, in text and JSON output alike. Case is ignored, and the `@` and the org are
 optional.

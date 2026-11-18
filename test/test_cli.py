@@ -581,3 +581,40 @@ def test_says_so_when_the_owner_filter_leaves_no_files(owned: Path) -> None:
     assert code == 0
     assert out == ''
     assert err == 'No files match --owner or --not-owner\n'
+
+
+def test_root_relative_paths_ignore_the_working_directory(folder: Path) -> None:
+    code, out, _ = run_cli(
+        ['--repo', '..', '--json', '--root-relative', 'docs/a.md', '-'],
+        cwd=folder / 'src',
+        stdin='docs/b.md\n',
+    )
+
+    assert code == 0
+    assert changed_paths(out) == ['docs/a.md', 'docs/b.md']
+
+
+def test_reads_null_separated_paths_from_stdin(folder: Path) -> None:
+    code, out, _ = run_cli(
+        ['--repo', '.', '--json', '-z', '-'],
+        cwd=folder,
+        stdin='docs/new\nline.md\0 src/space .py\0\0',
+    )
+
+    assert code == 0
+    assert changed_paths(out) == ['docs/new\nline.md', ' src/space .py']
+
+
+@pytest.mark.parametrize(
+    'args, message',
+    [
+        (['--root-relative'], '--root-relative needs paths'),
+        (['-z'], '-z needs paths'),
+        (['-z', 'docs/a.md'], "-z needs '-' to read paths from stdin"),
+    ],
+)
+def test_path_flags_need_paths(folder: Path, capsys, args: List[str], message: str) -> None:
+    with pytest.raises(SystemExit):
+        run_cli(['--repo', '.'] + args, cwd=folder)
+
+    assert capsys.readouterr().err.endswith(f'error: {message}\n')
