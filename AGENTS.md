@@ -9,6 +9,7 @@ This repository contains a Sublime Text plugin for identifying code owners from 
   - `git.py` - Git shell-outs
   - `coercion.py` - Value-narrowing helpers for settings and command arguments
   - `status_text.py` - Status bar template substitution
+  - `pull_request.py` - What a pull request sees: the files its commits change, and the `CODEOWNERS` rules at its base. Shared by the CLI and the plugin's diff command
   - `cli.py` - The `codeownerinsights` command (`python -m codeownerinsights`), registered under `[project.scripts]`
   - `__init__.py` - Re-exports the public API
 - `subl_codeowners.py` - Sublime Text plugin (the only module that imports `sublime`/`sublime_plugin`)
@@ -53,6 +54,7 @@ Tests are in the `test/` directory and use pytest. Everything except `subl_codeo
 - `test_parsing.py`, `test_matching.py`, `test_utils.py` - `codeownerinsights/codeowners.py`
 - `test_git.py` - `codeownerinsights/git.py`. Builds real temporary repositories in `tmp_path` (including a bare `origin` so `origin/HEAD` resolves) and shells out to git. No network access, and no test may mutate the process working directory
 - `test_coercion.py` - `codeownerinsights/coercion.py`. Covers the spellings a user can write in a settings file or keybinding, including the malformed ones that must fall back to the default rather than flip the setting
+- `test_pull_request.py` - `codeownerinsights/pull_request.py`. Builds a temporary repository with a branch, uncommitted edits and differing `CODEOWNERS` files per ref
 - `test_cli.py` - `codeownerinsights/cli.py`. Calls `main()` with injected stdin, stdout and working directory. The git-diff cases build a temporary repository with a bare `origin`, as `test_git.py` does
 - `test_status_text.py` - `codeownerinsights/status_text.py`. `test_default_template_renders_as_before` pins the default template to the hardcoded string the plugin used before the status bar became configurable; change it only when that visible output is meant to change
 - `subl_codeowners.py` is untested, as importing it requires the `sublime` module
@@ -110,10 +112,10 @@ harness does exercise that case.
 ## git.py Notes
 
 - `exec_command()` passes `cwd=folder_path` to `subprocess.run()`, so every command runs against the project folder regardless of the process working directory
-- `git diff --name-only` prints paths relative to the folder git was run in, not to the repo root. Join them with `folder_path` before handing them to `get_code_owner()`, which makes them relative to the folder again via `os.path.relpath()`
+- `git diff --name-only` prints paths relative to the repo root, whatever folder git runs in (unless `diff.relative` is set). `git ls-files` prints them relative to the folder it runs in. Run both in the repo root so the paths agree. The plugin runs them in each project folder, which assumes a project folder is a repo root
 - `get_default_branch()` returns an empty string rather than `None` when git fails, because the `| cut` pipeline makes the exit code come from `cut`. Callers test the result for truthiness
 - `get_git_staged_files()` and `get_git_unstaged_files()` read `-z` output, so git does not quote paths with unusual characters. `get_git_unstaged_files()` adds untracked files from `git ls-files --others --exclude-standard`, whose paths are relative to the folder it runs in; the CLI runs it in the repo root
-- `get_git_changed_files_compared_to_branch()` compares the merge base with the working tree unless `head` is passed. The plugin uses that default; the CLI passes `'HEAD'` because a pull request contains commits only
+- `get_git_changed_files_compared_to_branch()` compares the merge base with the working tree unless `head` is passed. `pull_request.py` passes `'HEAD'` because a pull request contains commits only
 - Renamed files are reported under their new path only, and `--diff-filter=ACMR` drops deletions
 - All git helpers accept an optional `git` parameter (default `"git"`) so a git wrapper can be substituted by replacing the leading command token
 

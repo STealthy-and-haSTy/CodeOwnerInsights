@@ -6,7 +6,6 @@ from pathlib import Path, PurePath
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, TextIO, Tuple
 
 from .codeowners import (
-    CODEOWNERS_LOCATIONS,
     CodeOwnerSpecification,
     get_code_owners_file,
     get_matching_code_owner_specifications_for_file,
@@ -16,14 +15,14 @@ from .git import (
     DEFAULT_GIT,
     exec_command,
     get_default_branch_remote_ref,
-    get_git_changed_files_compared_to_branch,
     get_git_staged_files,
     get_git_unstaged_files,
-    get_git_untracked_files,
-    read_file_at_ref,
 )
-
-PR_DIFF_FILTER = 'ACMRD'
+from .pull_request import (
+    PULL_REQUEST_DIFF_FILTER,
+    get_code_owner_specifications_at_ref,
+    get_pull_request_changed_files,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -192,11 +191,7 @@ def _load_specifications(
         if codeowners_file is None:
             return None
         return list(parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8')))
-    for location in CODEOWNERS_LOCATIONS:
-        content = read_file_at_ref(repo_root, ref, location, git=git)
-        if content is not None:
-            return list(parse_code_owners(repo_root / location, content))
-    return None
+    return get_code_owner_specifications_at_ref(repo_root, ref, git=git)
 
 
 def _collect_paths(
@@ -205,9 +200,13 @@ def _collect_paths(
     changed: List[Path] = []
     if args.staged or args.unstaged:
         if args.staged:
-            changed += get_git_staged_files(repo_root, git=args.git, diff_filter=PR_DIFF_FILTER)
+            changed += get_git_staged_files(
+                repo_root, git=args.git, diff_filter=PULL_REQUEST_DIFF_FILTER
+            )
         if args.unstaged:
-            changed += get_git_unstaged_files(repo_root, git=args.git, diff_filter=PR_DIFF_FILTER)
+            changed += get_git_unstaged_files(
+                repo_root, git=args.git, diff_filter=PULL_REQUEST_DIFF_FILTER
+            )
         return sorted(set(changed))
 
     if args.paths:
@@ -223,17 +222,9 @@ def _collect_paths(
         return [_repo_relative(path, relative_to, repo_root) for path in raw]
 
     assert base is not None
-    changed += get_git_changed_files_compared_to_branch(
-        repo_root,
-        base,
-        git=args.git,
-        diff_filter=PR_DIFF_FILTER,
-        head=None if args.with_uncommitted else 'HEAD',
+    return get_pull_request_changed_files(
+        repo_root, base, git=args.git, with_uncommitted=args.with_uncommitted
     )
-    if args.with_uncommitted:
-        changed += get_git_untracked_files(repo_root, git=args.git)
-        return sorted(set(changed))
-    return changed
 
 
 def _relative_to_repo(path: Path, repo_root: Path) -> PurePath:

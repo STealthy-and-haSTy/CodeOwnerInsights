@@ -48,9 +48,11 @@ when the key has a value, and drops it when it does not. That is how the default
 template keeps the dash beside `{comment}` when there is a comment and omits it
 when there is not, instead of leaving a stray dash behind.
 
-There is experimental support for showing all `git` changed files compared to
-the default branch, grouped by code owner. You will find it in the command
-palette. Currently very ugly but gets the job done.
+There is experimental support for showing the files a pull request from the
+current branch would change, grouped by code owner. You will find it in the
+command palette. Like GitHub, it counts committed changes only and resolves
+owners with the base branch's `CODEOWNERS` file, so it shows the reviewers the
+pull request will request. Currently very ugly but gets the job done.
 
 ## Commands
 
@@ -58,7 +60,7 @@ palette. Currently very ugly but gets the job done.
 | --- | --- |
 | **CodeOwnerInsights: Reveal Owner** | Open the `CODEOWNERS` file on the line whose rule resolves to the current file. |
 | **CodeOwnerInsights: Show All Matching Code Owner Rules** | Quick panel listing every `CODEOWNERS` rule that matches the current file, with the nearest comment shown under each pattern. The resolved owner (the last matching rule) is pre-selected. Preview opens the matching line; confirming a selection leaves the editor on that line; Esc cancels any preview navigation. |
-| **CodeOwnerInsights: Show Code Owners for git changes compared to default branch** | Group all files changed relative to the default branch by their code owner. |
+| **CodeOwnerInsights: Show Code Owners for git changes compared to default branch** | Group the files the branch's commits change relative to the default branch by the code owner that the default branch's `CODEOWNERS` gives them. |
 
 The "Show All Matching Code Owner Rules" command is bound to `Ctrl+Shift+O`.
 
@@ -77,8 +79,9 @@ and see exactly which later line overrides it.
   its documentation rather than as a bare pattern.
 - **Git-aware.** The library wraps git to enumerate changed files relative to the
   remote default branch (`origin/<default>`), refreshing the tracking ref first so
-  a stale local baseline doesn't drag unrelated commits into the diff. The git
-  helpers accept an optional `git=` parameter so a git wrapper can be substituted
+  a stale local baseline doesn't drag unrelated commits into the diff. It reads
+  `CODEOWNERS` at the base branch too, because that is the version GitHub uses to
+  request reviewers. The git helpers accept an optional `git=` parameter so a git wrapper can be substituted
   by replacing the leading command token.
 - **GitHub's documented semantics, not git's.** Patterns follow GitHub's
   `CODEOWNERS` rules literally — a leading `/` anchors to the repo root and a

@@ -15,7 +15,11 @@ from .codeownerinsights.codeowners import (
     get_resolved_code_owners_for_file,
     is_path_relative_to,
 )
-from .codeownerinsights.git import get_git_changed_files_compared_to_default_branch
+from .codeownerinsights.git import get_default_branch_remote_ref
+from .codeownerinsights.pull_request import (
+    get_code_owner_specifications_at_ref,
+    get_pull_request_changed_files,
+)
 from .codeownerinsights.status_text import (
     DEFAULT_STATUS_TEMPLATE,
     format_comment,
@@ -246,29 +250,38 @@ def get_code_owner_specifications_for_folder(
     return None
 
 
-def get_git_change_owners_for_folder(
-    window: sublime.Window,
-    folder_path: Path,
-    include_unowned: bool,
-    fetch_remote: bool,
-) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
-    for file_path in get_git_changed_files_compared_to_default_branch(
-        folder_path, fetch_remote=fetch_remote
-    ):
-        # git diff --name-only reports paths relative to the folder it was run in
-        owner = get_code_owner(window, folder_path, folder_path / file_path)
+@dataclass
+class FolderPullRequestOwners:
+    folder_path: Path
+    base: Optional[str]
+    has_codeowners: bool
+    files: List[Tuple[Path, Optional[CodeOwnerSpecification]]]
+
+
+def get_pull_request_owners_for_folder(
+    folder_path: Path, include_unowned: bool, fetch_remote: bool
+) -> FolderPullRequestOwners:
+    base = get_default_branch_remote_ref(folder_path, fetch_remote)
+    if not base:
+        return FolderPullRequestOwners(folder_path, None, False, [])
+    specifications = get_code_owner_specifications_at_ref(folder_path, base)
+    files = []
+    for file_path in get_pull_request_changed_files(folder_path, base):
+        owner = (
+            get_resolved_code_owners_for_file(specifications, file_path) if specifications else None
+        )
         if owner or include_unowned:
-            yield (folder_path, file_path, owner)
+            files.append((file_path, owner))
+    return FolderPullRequestOwners(folder_path, base, specifications is not None, files)
 
 
-def get_git_change_owners(
+def get_pull_request_owners(
     window: sublime.Window, include_unowned: bool, fetch_remote: bool
-) -> Iterable[Tuple[Path, Path, Optional[CodeOwnerSpecification]]]:
-    for folder_path in window.folders():
-        for result in get_git_change_owners_for_folder(
-            window, Path(folder_path), include_unowned, fetch_remote
-        ):
-            yield result
+) -> List[FolderPullRequestOwners]:
+    return [
+        get_pull_request_owners_for_folder(Path(folder_path), include_unowned, fetch_remote)
+        for folder_path in window.folders()
+    ]
 
 
 class RevealCodeOwnerCommand(sublime_plugin.TextCommand):
@@ -456,13 +469,15 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         fetch_remote: bool,
     ) -> None:
         try:
-            result = list(get_git_change_owners(window, include_unowned, fetch_remote))
+            folders = get_pull_request_owners(window, include_unowned, fetch_remote)
         finally:
             # clear the status message on the UI thread once the work is done
             sublime.set_timeout(lambda: self.view.erase_status(STATUS_BAR_KEY_COMPUTING_DIFF), 0)
 
-        owner_tree = self._group_by_owners(result)
-        popup_content = self._format_popup(owner_tree)
+        owner_tree = self._group_by_owners(
+            (folder.folder_path, file, owner) for folder in folders for file, owner in folder.files
+        )
+        popup_content = self._format_popup(owner_tree, self._describe_sources(folders))
         sublime.set_timeout(lambda: self._show_popup(popup_content), 0)
 
     @staticmethod
@@ -481,7 +496,20 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         return owner_tree
 
     @staticmethod
-    def _format_popup(owner_tree: dict) -> str:
+    def _describe_sources(folders: List[FolderPullRequestOwners]) -> List[str]:
+        notes = []
+        for folder in folders:
+            where = f' in {folder.folder_path.name}' if len(folders) > 1 else ''
+            if folder.base is None:
+                notes.append(f'No default branch found from origin/HEAD{where}')
+            elif folder.has_codeowners:
+                notes.append(f'CODEOWNERS at {folder.base}{where}')
+            else:
+                notes.append(f'No CODEOWNERS at {folder.base}{where}, so no code owners')
+        return notes
+
+    @staticmethod
+    def _format_popup(owner_tree: dict, notes: List[str]) -> str:
         popup_content = ''
         # refresh button: re-runs the diff forcing a fetch from the remote, so
         # results reflect the real baseline even when the setting is off. This
@@ -489,8 +517,10 @@ class ShowCodeOwnersForGitDefaultBranchDiffCommand(sublime_plugin.TextCommand):
         popup_content += (
             '<a href="subl:refresh" style="padding: 0 6px; font-weight: bold;">'
             '\u21bb Refresh from remote</a>\n'
-            '<hr/>\n'
         )
+        for note in notes:
+            popup_content += f'<div style="padding: 0 6px;">{html.escape(note)}</div>\n'
+        popup_content += '<hr/>\n'
         for owners in owner_tree.keys():
             popup_content += f'<h2>{html.escape(owners)}</h2>\n<ul>\n'
 

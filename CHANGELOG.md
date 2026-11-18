@@ -40,6 +40,16 @@ while untracked files were not. It now compares with `HEAD`, which is what a pul
 request contains. `--with-uncommitted` gives the working-tree view, untracked files
 included. The Sublime Text plugin's diff is unchanged.
 
+**The plugin's diff command shows what the pull request will request.** It lists
+the files the branch's commits change, and resolves their owners with the base
+branch's `CODEOWNERS`, as GitHub does. It used to include uncommitted edits to
+tracked files, and used the working tree's `CODEOWNERS`. The popup now names the
+ref it read `CODEOWNERS` at. The status bar and the rule commands still follow the
+working tree's `CODEOWNERS`, so edits to it show straight away.
+
+**`pull_request` module** with `get_pull_request_changed_files()` and
+`get_code_owner_specifications_at_ref()`, shared by the CLI and the plugin.
+
 ### Fixed
 
 **The CLI reads the base branch's `CODEOWNERS` for the branch changes**, because
