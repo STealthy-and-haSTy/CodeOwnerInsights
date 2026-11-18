@@ -11,6 +11,13 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 included, to the branch changes, for the files a pull request would change once
 everything is committed.
 
+**`--codeowners-ref` and `--worktree-codeowners` CLI flags.** Read `CODEOWNERS`
+at another ref, or from the working tree for the branch changes, to preview edits
+to it.
+
+**`read_file_at_ref()`** git helper and **`CODEOWNERS_LOCATIONS`**, the paths GitHub
+searches for a `CODEOWNERS` file, in order.
+
 **`head` parameter** on `get_git_changed_files_compared_to_branch()`. Pass `'HEAD'`
 to compare committed changes only; the default still compares the merge base with
 the working tree.
@@ -26,6 +33,13 @@ request contains. `--with-uncommitted` gives the working-tree view, untracked fi
 included. The Sublime Text plugin's diff is unchanged.
 
 ### Fixed
+
+**The CLI reads the base branch's `CODEOWNERS` for the branch changes**, because
+GitHub requests reviewers from that version. JSON output gains `codeowners_ref`,
+and text output names the ref. Other modes still read the working tree's copy.
+
+**The CLI fails when it cannot find the default branch** from `origin/HEAD`, with
+exit code 1 and a pointer to `--base`, instead of reporting no files.
 
 ## [0.4.0]
 

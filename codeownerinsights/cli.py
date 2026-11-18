@@ -6,6 +6,7 @@ from pathlib import Path, PurePath
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, TextIO, Tuple
 
 from .codeowners import (
+    CODEOWNERS_LOCATIONS,
     CodeOwnerSpecification,
     get_code_owners_file,
     get_matching_code_owner_specifications_for_file,
@@ -19,6 +20,7 @@ from .git import (
     get_git_staged_files,
     get_git_unstaged_files,
     get_git_untracked_files,
+    read_file_at_ref,
 )
 
 PR_DIFF_FILTER = 'ACMRD'
@@ -72,6 +74,20 @@ def _build_parser() -> argparse.ArgumentParser:
         '--no-fetch',
         action='store_true',
         help='use the local origin/<default> ref without fetching it first',
+    )
+    codeowners_source = parser.add_mutually_exclusive_group()
+    codeowners_source.add_argument(
+        '--codeowners-ref',
+        metavar='REF',
+        help=(
+            'read CODEOWNERS at this ref (default: the base for branch changes, as GitHub does; '
+            'the working tree otherwise)'
+        ),
+    )
+    codeowners_source.add_argument(
+        '--worktree-codeowners',
+        action='store_true',
+        help='read CODEOWNERS from the working tree for branch changes too, to preview edits to it',
     )
     parser.add_argument(
         '--all-rules',
@@ -133,8 +149,27 @@ def _check_sources(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
         parser.error(f'{branch_only[0]} cannot be combined with {other}')
 
 
+def _is_branch_mode(args: argparse.Namespace) -> bool:
+    return not (args.staged or args.unstaged or args.paths)
+
+
+def _load_specifications(
+    repo_root: Path, ref: Optional[str], git: str
+) -> Optional[List[CodeOwnerSpecification]]:
+    if ref is None:
+        codeowners_file = get_code_owners_file(repo_root)
+        if codeowners_file is None:
+            return None
+        return list(parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8')))
+    for location in CODEOWNERS_LOCATIONS:
+        content = read_file_at_ref(repo_root, ref, location, git=git)
+        if content is not None:
+            return list(parse_code_owners(repo_root / location, content))
+    return None
+
+
 def _collect_paths(
-    args: argparse.Namespace, cwd: Path, repo_root: Path, stdin: TextIO
+    args: argparse.Namespace, cwd: Path, repo_root: Path, stdin: TextIO, base: Optional[str]
 ) -> List[Path]:
     changed: List[Path] = []
     if args.staged or args.unstaged:
@@ -153,11 +188,7 @@ def _collect_paths(
                 raw.append(path)
         return [_repo_relative(path, cwd, repo_root) for path in raw]
 
-    base = args.base or get_default_branch_remote_ref(
-        repo_root, fetch_remote=not args.no_fetch, git=args.git
-    )
-    if not base:
-        return []
+    assert base is not None
     changed += get_git_changed_files_compared_to_branch(
         repo_root,
         base,
@@ -322,30 +353,59 @@ def main(
     repo_root = (args.repo if args.repo.is_absolute() else cwd / args.repo) if args.repo else None
     repo_root = (repo_root or _find_repo_root(cwd, args.git)).resolve()
 
-    codeowners_file = get_code_owners_file(repo_root)
-    if codeowners_file is None:
-        message = f'No CODEOWNERS file found in {repo_root}'
+    def fail(message: str, code: int) -> int:
         if args.json:
             json.dump({'error': message}, stderr)
             stderr.write('\n')
         else:
             stderr.write(f'{message}\n')
-        return 2
+        return code
 
-    specifications = list(
-        parse_code_owners(codeowners_file, codeowners_file.read_text(encoding='utf-8'))
-    )
+    base: Optional[str] = None
+    if _is_branch_mode(args):
+        base = args.base or get_default_branch_remote_ref(
+            repo_root, fetch_remote=not args.no_fetch, git=args.git
+        )
+        if not base:
+            return fail('Could not find the default branch from origin/HEAD; pass --base <ref>', 1)
+
+    codeowners_ref = args.codeowners_ref
+    if codeowners_ref is None and base and not args.worktree_codeowners:
+        codeowners_ref = base
+
+    specifications = _load_specifications(repo_root, codeowners_ref, args.git)
+    if specifications is None:
+        if codeowners_ref is None:
+            return fail(f'No CODEOWNERS file found in {repo_root}', 2)
+        message = f'No CODEOWNERS file found at {codeowners_ref}'
+        if not args.codeowners_ref:
+            message += (
+                ". GitHub requests code owners from the base branch's CODEOWNERS file; "
+                "pass --worktree-codeowners to use the working tree's instead"
+            )
+        return fail(message, 2)
+
     results = _resolve(
-        specifications, _collect_paths(args, cwd, repo_root, stdin), repo_root, args.all_rules
+        specifications, _collect_paths(args, cwd, repo_root, stdin, base), repo_root, args.all_rules
     )
 
     if args.json:
-        json.dump({'files': results, 'owners': _owners_summary(results)}, stdout, indent=2)
+        json.dump(
+            {
+                'files': results,
+                'owners': _owners_summary(results),
+                'codeowners_ref': codeowners_ref,
+            },
+            stdout,
+            indent=2,
+        )
         stdout.write('\n')
     elif results:
         style = _Style(_use_color(args.color, stdout, os.environ if environ is None else environ))
         printer = _print_text_by_owner if args.group_by == 'owner' else _print_text
         printer(results, args.all_rules, style, stdout)
+        if codeowners_ref:
+            stdout.write(f'\n{style.rule(f"CODEOWNERS at {codeowners_ref}")}\n')
     else:
         stderr.write('No files to resolve\n')
     return 0

@@ -441,3 +441,95 @@ def test_with_uncommitted_adds_the_working_tree_and_untracked_files(
         'source/app/Identity/Added.php',
         'src/kept.py',
     ]
+
+
+@pytest.fixture
+def codeowners_edited(repo: Path) -> Path:
+    write_file(repo, 'CODEOWNERS', '* @org/branch\n')
+    commit_all(repo, 'change owners on the branch')
+    write_file(repo, 'CODEOWNERS', '* @org/worktree\n')
+    return repo
+
+
+def owners_by_path(out: str) -> dict:
+    return {file['path']: file['owners'] for file in json.loads(out)['files']}
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_branch_changes_use_the_base_codeowners(codeowners_edited: Path) -> None:
+    code, out, _ = run_cli(['--json', '--no-fetch'], cwd=codeowners_edited)
+
+    assert code == 0
+    result = json.loads(out)
+    assert result['codeowners_ref'] == 'origin/main'
+    assert owners_by_path(out)['source/app/Identity/Added.php'] == ['@org/identity']
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+@pytest.mark.parametrize(
+    'args, ref, owner',
+    [
+        (['--base', 'main'], 'main', '@org/identity'),
+        (['--codeowners-ref', 'HEAD'], 'HEAD', '@org/branch'),
+        (['--worktree-codeowners'], None, '@org/worktree'),
+    ],
+)
+def test_branch_changes_can_use_other_codeowners(
+    codeowners_edited: Path, args: List[str], ref: Optional[str], owner: str
+) -> None:
+    code, out, _ = run_cli(['--json', '--no-fetch'] + args, cwd=codeowners_edited)
+
+    assert code == 0
+    assert json.loads(out)['codeowners_ref'] == ref
+    assert owners_by_path(out)['source/app/Identity/Added.php'] == [owner]
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_other_modes_use_the_working_tree_codeowners(codeowners_edited: Path) -> None:
+    code, out, _ = run_cli(['--json', 'src/kept.py'], cwd=codeowners_edited)
+
+    assert code == 0
+    assert json.loads(out)['codeowners_ref'] is None
+    assert owners_by_path(out) == {'src/kept.py': ['@org/worktree']}
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_text_output_names_the_codeowners_ref(codeowners_edited: Path) -> None:
+    code, out, _ = run_cli(['--no-fetch'], cwd=codeowners_edited)
+
+    assert code == 0
+    assert out.endswith('\nCODEOWNERS at origin/main\n')
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_fails_when_the_base_has_no_codeowners(repo: Path) -> None:
+    git(repo, 'rm', '-q', 'CODEOWNERS')
+    commit_all(repo, 'drop CODEOWNERS')
+    git(repo, 'push', '-q', 'origin', 'feature:main', '--force')
+    write_file(repo, '.github/CODEOWNERS', '* @org/new\n')
+    commit_all(repo, 'add CODEOWNERS elsewhere')
+
+    code, out, err = run_cli(['--no-fetch'], cwd=repo)
+
+    assert code == 2
+    assert out == ''
+    assert err.startswith('No CODEOWNERS file found at origin/main. GitHub requests code owners')
+    assert '--worktree-codeowners' in err
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_fails_when_the_default_branch_is_unknown(repo: Path) -> None:
+    git(repo, 'remote', 'set-head', 'origin', '--delete')
+
+    code, out, err = run_cli(['--no-fetch'], cwd=repo)
+
+    assert code == 1
+    assert out == ''
+    assert err == 'Could not find the default branch from origin/HEAD; pass --base <ref>\n'
+
+
+def test_codeowners_sources_are_mutually_exclusive(folder: Path, capsys) -> None:
+    with pytest.raises(SystemExit):
+        run_cli(['--repo', '.', '--codeowners-ref', 'HEAD', '--worktree-codeowners'], cwd=folder)
+
+    assert 'not allowed with argument' in capsys.readouterr().err

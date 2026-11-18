@@ -96,7 +96,8 @@ file and the rule that decides it, then the owners those files need. With no
 arguments it uses the files the current branch's commits change compared with
 `origin/<default>`, deletions included, which are the files GitHub requests a
 pull request's reviewers for. Uncommitted changes are left out, as they are not
-part of the pull request yet.
+part of the pull request yet. Like GitHub, it reads `CODEOWNERS` from the base
+branch for these, and names the ref it used at the end of the output.
 
 ```sh
 $ codeownerinsights
@@ -118,6 +119,10 @@ Owners:
   the files changed in the working tree plus untracked files that are not
   ignored. Pass both for every uncommitted change. Neither combines with paths,
   `--base`, `--no-fetch` or `--with-uncommitted`.
+- `--codeowners-ref <ref>` reads `CODEOWNERS` at another ref, and
+  `--worktree-codeowners` reads the working tree's copy for the branch changes
+  too, to preview edits to it. Other modes read the working tree's copy unless
+  `--codeowners-ref` is given.
 - `--repo <path>` resolves files against a repository other than the current git
   top level.
 - `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing
@@ -140,10 +145,12 @@ Owners:
   colours it only when stdout is a terminal and `NO_COLOR` is not set, so
   pipes get plain text.
 - `--json` prints the same result as JSON, with an `owners` map from each owner
-  to its files.
+  to its files, and `codeowners_ref`, the ref `CODEOWNERS` was read at (`null`
+  for the working tree).
 - `--git <executable>` uses a different git executable (default: `git`).
 
-The exit code is 2 when the repository has no `CODEOWNERS` file.
+The exit code is 2 when there is no `CODEOWNERS` file where it was looked for,
+and 1 when the default branch cannot be found from `origin/HEAD` (pass `--base`).
 
 ## Library usage
 

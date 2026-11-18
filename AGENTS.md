@@ -64,7 +64,7 @@ Tests are in the `test/` directory and use pytest. Everything except `subl_codeo
 
 ## File Location Logic
 
-The plugin searches for CODEOWNERS files in this order:
+`CODEOWNERS_LOCATIONS` in `codeowners.py` holds the search order, shared by the working-tree lookup and the CLI's lookup at a ref. The plugin searches for CODEOWNERS files in this order:
 1. `./.github/CODEOWNERS`
 2. `./CODEOWNERS`
 3. `./docs/CODEOWNERS`

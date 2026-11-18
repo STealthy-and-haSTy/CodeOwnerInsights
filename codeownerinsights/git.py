@@ -119,6 +119,16 @@ def get_git_untracked_files(folder_path: Path, git: str = DEFAULT_GIT) -> List[P
     )
 
 
+def read_file_at_ref(
+    folder_path: Path, ref: str, path: str, git: str = DEFAULT_GIT
+) -> Optional[str]:
+    """Return the content of ``path`` (relative to the repo root, ``/``-separated) at ``ref``, or None."""
+    result = exec_command(folder_path, _git_cmd(git, 'show', f'{ref}:{path}'))
+    if result and result.process.returncode == 0:
+        return result.process.stdout
+    return None
+
+
 def get_default_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:
     result = exec_command(folder_path, _git_cmd(git, 'rev-parse', '--abbrev-ref', 'origin/HEAD'))
     if result and result.process.returncode == 0:

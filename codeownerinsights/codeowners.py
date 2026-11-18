@@ -122,12 +122,13 @@ def get_resolved_code_owners_for_file(
     return None
 
 
-def get_code_owners_file(repo_root: Path) -> Optional[Path]:
-    try_locations = ['./.github/', './', './docs']
-    # If CODEOWNERS files exist in more than one of those locations, GitHub will search for them in that order and use the first one it finds.
+# If CODEOWNERS files exist in more than one of these locations, GitHub will search for them in this order and use the first one it finds.
+CODEOWNERS_LOCATIONS = ('.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS')
 
-    for folder in try_locations:
-        path = repo_root / folder / 'CODEOWNERS'
+
+def get_code_owners_file(repo_root: Path) -> Optional[Path]:
+    for location in CODEOWNERS_LOCATIONS:
+        path = repo_root / location
         if path.is_file():
             return path
 
