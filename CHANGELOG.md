@@ -11,6 +11,10 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 included, to the branch changes, for the files a pull request would change once
 everything is committed.
 
+**`--owner` and `--not-owner` CLI flags.** Keep or leave out the files an owner
+covers, in text and JSON output alike. Case is ignored, and the `@` and the org are
+optional.
+
 **`--codeowners-ref` and `--worktree-codeowners` CLI flags.** Read `CODEOWNERS`
 at another ref, or from the working tree for the branch changes, to preview edits
 to it.

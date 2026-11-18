@@ -127,6 +127,11 @@ Owners:
   top level.
 - `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing
   `origin/<default>`.
+- `--owner <owner>` shows only the files that owner covers, and
+  `--not-owner <owner>` leaves them out; repeat either for several owners. Case
+  is ignored, and the `@` and the org are optional, so `--owner core-banking`
+  matches `@TransferGo/core-banking`. A file with several owners is covered by
+  each of them, so `--not-owner` drops it if any of them is named.
 - `--all-rules` lists every matching rule under each file and marks the one that
   applies with `*`. With `--json`, this includes `matching_rules` for each file.
 - `--group-by owner` lists the files under each set of owners that applies to

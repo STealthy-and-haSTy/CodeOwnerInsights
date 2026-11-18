@@ -90,6 +90,21 @@ def _build_parser() -> argparse.ArgumentParser:
         help='read CODEOWNERS from the working tree for branch changes too, to preview edits to it',
     )
     parser.add_argument(
+        '--owner',
+        action='append',
+        default=[],
+        help=(
+            'only show files this owner covers; repeat for any of several. Case is ignored, and '
+            '@ and the org are optional: core-banking matches @TransferGo/core-banking'
+        ),
+    )
+    parser.add_argument(
+        '--not-owner',
+        action='append',
+        default=[],
+        help='leave out files this owner covers; repeat for several. Matches as --owner does',
+    )
+    parser.add_argument(
         '--all-rules',
         action='store_true',
         help='also list every rule that matches each file, not only the one that applies',
@@ -234,6 +249,31 @@ def _resolve(
             result['matching_rules'] = [_rule_dict(spec, repo_root) for spec in matching]
         results.append(result)
     return results
+
+
+def _owner_matches(wanted: str, owner: str) -> bool:
+    wanted = wanted.lower().lstrip('@')
+    owner = owner.lower().lstrip('@')
+    return wanted == owner or ('/' not in wanted and owner.endswith(f'/{wanted}'))
+
+
+def _covered_by_any(result: Dict[str, object], wanted: Sequence[str]) -> bool:
+    return any(
+        _owner_matches(w, owner)
+        for w in wanted
+        for owner in result['owners']  # type: ignore[union-attr]
+    )
+
+
+def _filter_by_owner(
+    results: List[Dict[str, object]], owner: Sequence[str], not_owner: Sequence[str]
+) -> List[Dict[str, object]]:
+    return [
+        result
+        for result in results
+        if (not owner or _covered_by_any(result, owner))
+        and not (not_owner and _covered_by_any(result, not_owner))
+    ]
 
 
 def _owners_summary(results: List[Dict[str, object]]) -> Dict[str, List[str]]:
@@ -388,6 +428,8 @@ def main(
     results = _resolve(
         specifications, _collect_paths(args, cwd, repo_root, stdin, base), repo_root, args.all_rules
     )
+    filtered = bool(results) and bool(args.owner or args.not_owner)
+    results = _filter_by_owner(results, args.owner, args.not_owner)
 
     if args.json:
         json.dump(
@@ -406,6 +448,8 @@ def main(
         printer(results, args.all_rules, style, stdout)
         if codeowners_ref:
             stdout.write(f'\n{style.rule(f"CODEOWNERS at {codeowners_ref}")}\n')
+    elif filtered:
+        stderr.write('No files match --owner or --not-owner\n')
     else:
         stderr.write('No files to resolve\n')
     return 0

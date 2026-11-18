@@ -533,3 +533,51 @@ def test_codeowners_sources_are_mutually_exclusive(folder: Path, capsys) -> None
         run_cli(['--repo', '.', '--codeowners-ref', 'HEAD', '--worktree-codeowners'], cwd=folder)
 
     assert 'not allowed with argument' in capsys.readouterr().err
+
+
+@pytest.fixture
+def owned(tmp_path: Path) -> Path:
+    write_file(
+        tmp_path,
+        'CODEOWNERS',
+        '* @Org/Everyone\n/docs/ @org/docs @org/writers\n/src/ @other/docs\n/vendor/\n',
+    )
+    return tmp_path
+
+
+OWNED_PATHS = ['app.py', 'docs/a.md', 'src/b.py', 'vendor/c.py']
+
+
+@pytest.mark.parametrize(
+    'args, expected',
+    [
+        (['--owner', '@org/docs'], ['docs/a.md']),
+        (['--owner', 'ORG/DOCS'], ['docs/a.md']),
+        (['--owner', 'docs'], ['docs/a.md', 'src/b.py']),
+        (['--owner', 'writers', '--owner', 'everyone'], ['app.py', 'docs/a.md']),
+        (['--not-owner', 'org/docs'], ['app.py', 'src/b.py', 'vendor/c.py']),
+        (['--not-owner', 'docs', '--not-owner', '@org/everyone'], ['vendor/c.py']),
+        (['--owner', 'docs', '--not-owner', 'writers'], ['src/b.py']),
+        (['--owner', 'everyone/docs'], []),
+    ],
+)
+def test_filters_files_by_owner(owned: Path, args: List[str], expected: List[str]) -> None:
+    code, out, _ = run_cli(['--repo', '.', '--json'] + args + OWNED_PATHS, cwd=owned)
+
+    assert code == 0
+    assert changed_paths(out) == expected
+
+
+def test_owner_filter_narrows_the_owner_summary(owned: Path) -> None:
+    code, out, _ = run_cli(['--repo', '.', '--owner', 'writers'] + OWNED_PATHS, cwd=owned)
+
+    assert code == 0
+    assert out.splitlines()[-3:] == ['Owners:', '  @org/docs (1 file)', '  @org/writers (1 file)']
+
+
+def test_says_so_when_the_owner_filter_leaves_no_files(owned: Path) -> None:
+    code, out, err = run_cli(['--repo', '.', '--owner', 'nobody'] + OWNED_PATHS, cwd=owned)
+
+    assert code == 0
+    assert out == ''
+    assert err == 'No files match --owner or --not-owner\n'
