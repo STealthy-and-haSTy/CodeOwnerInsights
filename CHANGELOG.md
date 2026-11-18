@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ## [Unreleased]
 
 ### Added
+### Changed
+### Fixed
+
+## [0.5.0]
+
+### Added
 
 **`--with-uncommitted` CLI flag.** Adds uncommitted changes, untracked files
 included, to the branch changes, for the files a pull request would change once
