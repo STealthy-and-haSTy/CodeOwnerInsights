@@ -93,9 +93,10 @@ and see exactly which later line overrides it.
 
 `codeownerinsights` (or `python -m codeownerinsights`) prints the owner of each
 file and the rule that decides it, then the owners those files need. With no
-arguments it uses the files the current branch changes compared with
+arguments it uses the files the current branch's commits change compared with
 `origin/<default>`, deletions included, which are the files GitHub requests a
-pull request's reviewers for.
+pull request's reviewers for. Uncommitted changes are left out, as they are not
+part of the pull request yet.
 
 ```sh
 $ codeownerinsights
@@ -110,10 +111,13 @@ Owners:
 - Pass paths to resolve those files instead, relative to the current directory.
   `-` reads paths from stdin, so `git diff --name-only main... | codeownerinsights -`
   works too.
+- `--with-uncommitted` adds uncommitted changes, untracked files included, to
+  the branch changes: the files the pull request would change once everything
+  is committed.
 - `--staged` resolves the files changed in the index instead, and `--unstaged`
   the files changed in the working tree plus untracked files that are not
   ignored. Pass both for every uncommitted change. Neither combines with paths,
-  `--base` or `--no-fetch`.
+  `--base`, `--no-fetch` or `--with-uncommitted`.
 - `--repo <path>` resolves files against a repository other than the current git
   top level.
 - `--base <ref>` compares with another ref, and `--no-fetch` skips refreshing

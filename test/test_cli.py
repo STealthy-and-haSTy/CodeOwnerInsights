@@ -258,22 +258,25 @@ def test_staged_and_unstaged_together_list_each_file_once(working_tree: Path) ->
 
 
 @pytest.mark.parametrize(
-    'args, conflict',
+    'args, message',
     [
-        (['--staged', 'src/app.py'], 'paths'),
-        (['--unstaged', '-'], 'paths'),
-        (['--staged', '--base', 'main'], '--base'),
-        (['--unstaged', '--no-fetch'], '--no-fetch'),
+        (['--staged', 'src/app.py'], '--staged cannot be combined with paths'),
+        (['--unstaged', '-'], '--unstaged cannot be combined with paths'),
+        (['--staged', '--base', 'main'], '--base cannot be combined with --staged'),
+        (['--unstaged', '--no-fetch'], '--no-fetch cannot be combined with --unstaged'),
+        (['--with-uncommitted', '--staged'], '--with-uncommitted cannot be combined with --staged'),
+        (['--with-uncommitted', 'src/app.py'], '--with-uncommitted cannot be combined with paths'),
+        (['--base', 'main', 'src/app.py'], '--base cannot be combined with paths'),
     ],
 )
-def test_working_tree_flags_reject_other_sources(
-    folder: Path, capsys, args: List[str], conflict: str
+def test_rejects_flags_that_pick_different_files(
+    folder: Path, capsys, args: List[str], message: str
 ) -> None:
     with pytest.raises(SystemExit) as exit_info:
         run_cli(['--repo', '.'] + args, cwd=folder)
 
     assert exit_info.value.code == 2
-    assert f'cannot be combined with {conflict}' in capsys.readouterr().err
+    assert capsys.readouterr().err.endswith(f'error: {message}\n')
 
 
 @pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
@@ -403,3 +406,38 @@ def test_json_is_never_coloured(folder: Path) -> None:
     )
 
     assert '\033[' not in out
+
+
+@pytest.fixture
+def uncommitted_branch(repo: Path) -> Path:
+    write_file(repo, 'src/kept.py', '# edited, not committed\n')
+    write_file(repo, 'docs/staged.md', '# staged\n')
+    git(repo, 'add', 'docs/staged.md')
+    write_file(repo, 'notes/untracked.txt', 'new\n')
+    return repo
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_branch_changes_leave_out_uncommitted_changes(uncommitted_branch: Path) -> None:
+    code, out, _ = run_cli(['--json', '--no-fetch'], cwd=uncommitted_branch)
+
+    assert code == 0
+    assert changed_paths(out) == ['docs/removed.md', 'source/app/Identity/Added.php']
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='the git helpers shell out to bash')
+def test_with_uncommitted_adds_the_working_tree_and_untracked_files(
+    uncommitted_branch: Path,
+) -> None:
+    code, out, _ = run_cli(
+        ['--json', '--no-fetch', '--with-uncommitted'], cwd=uncommitted_branch / 'src'
+    )
+
+    assert code == 0
+    assert changed_paths(out) == [
+        'docs/removed.md',
+        'docs/staged.md',
+        'notes/untracked.txt',
+        'source/app/Identity/Added.php',
+        'src/kept.py',
+    ]

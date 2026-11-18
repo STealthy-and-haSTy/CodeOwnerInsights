@@ -113,6 +113,7 @@ harness does exercise that case.
 - `git diff --name-only` prints paths relative to the folder git was run in, not to the repo root. Join them with `folder_path` before handing them to `get_code_owner()`, which makes them relative to the folder again via `os.path.relpath()`
 - `get_default_branch()` returns an empty string rather than `None` when git fails, because the `| cut` pipeline makes the exit code come from `cut`. Callers test the result for truthiness
 - `get_git_staged_files()` and `get_git_unstaged_files()` read `-z` output, so git does not quote paths with unusual characters. `get_git_unstaged_files()` adds untracked files from `git ls-files --others --exclude-standard`, whose paths are relative to the folder it runs in; the CLI runs it in the repo root
+- `get_git_changed_files_compared_to_branch()` compares the merge base with the working tree unless `head` is passed. The plugin uses that default; the CLI passes `'HEAD'` because a pull request contains commits only
 - Renamed files are reported under their new path only, and `--diff-filter=ACMR` drops deletions
 - All git helpers accept an optional `git` parameter (default `"git"`) so a git wrapper can be substituted by replacing the leading command token
 

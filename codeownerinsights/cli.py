@@ -14,10 +14,11 @@ from .codeowners import (
 from .git import (
     DEFAULT_GIT,
     exec_command,
+    get_default_branch_remote_ref,
     get_git_changed_files_compared_to_branch,
-    get_git_changed_files_compared_to_default_branch,
     get_git_staged_files,
     get_git_unstaged_files,
+    get_git_untracked_files,
 )
 
 PR_DIFF_FILTER = 'ACMRD'
@@ -28,7 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog='codeownerinsights',
         description=(
             'Resolve the CODEOWNERS owners of files the way GitHub does. '
-            'With no paths, use the files the current branch changes compared with the '
+            'With no paths, use the files the current branch commits change compared with the '
             "default branch, which are the files GitHub requests a pull request's reviewers for."
         ),
     )
@@ -58,6 +59,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         '--base',
         help='compare the current branch with this ref instead of the default branch',
+    )
+    parser.add_argument(
+        '--with-uncommitted',
+        action='store_true',
+        help=(
+            'add uncommitted changes, untracked files included, to the branch changes: the files '
+            'the pull request would change once everything is committed'
+        ),
     )
     parser.add_argument(
         '--no-fetch',
@@ -108,20 +117,27 @@ def _check_sources(parser: argparse.ArgumentParser, args: argparse.Namespace) ->
     working_tree = [
         flag for flag, on in (('--staged', args.staged), ('--unstaged', args.unstaged)) if on
     ]
-    if not working_tree:
-        return
-    if args.paths:
+    branch_only = [
+        flag
+        for flag, on in (
+            ('--base', args.base),
+            ('--no-fetch', args.no_fetch),
+            ('--with-uncommitted', args.with_uncommitted),
+        )
+        if on
+    ]
+    if working_tree and args.paths:
         parser.error(f'{working_tree[0]} cannot be combined with paths')
-    if args.base or args.no_fetch:
-        other = '--base' if args.base else '--no-fetch'
-        parser.error(f'{working_tree[0]} cannot be combined with {other}')
+    if branch_only and (working_tree or args.paths):
+        other = working_tree[0] if working_tree else 'paths'
+        parser.error(f'{branch_only[0]} cannot be combined with {other}')
 
 
 def _collect_paths(
     args: argparse.Namespace, cwd: Path, repo_root: Path, stdin: TextIO
 ) -> List[Path]:
+    changed: List[Path] = []
     if args.staged or args.unstaged:
-        changed: List[Path] = []
         if args.staged:
             changed += get_git_staged_files(repo_root, git=args.git, diff_filter=PR_DIFF_FILTER)
         if args.unstaged:
@@ -137,15 +153,22 @@ def _collect_paths(
                 raw.append(path)
         return [_repo_relative(path, cwd, repo_root) for path in raw]
 
-    if args.base:
-        changed = get_git_changed_files_compared_to_branch(
-            repo_root, args.base, git=args.git, diff_filter=PR_DIFF_FILTER
-        )
-    else:
-        changed = get_git_changed_files_compared_to_default_branch(
-            repo_root, fetch_remote=not args.no_fetch, git=args.git, diff_filter=PR_DIFF_FILTER
-        )
-    return list(changed)
+    base = args.base or get_default_branch_remote_ref(
+        repo_root, fetch_remote=not args.no_fetch, git=args.git
+    )
+    if not base:
+        return []
+    changed += get_git_changed_files_compared_to_branch(
+        repo_root,
+        base,
+        git=args.git,
+        diff_filter=PR_DIFF_FILTER,
+        head=None if args.with_uncommitted else 'HEAD',
+    )
+    if args.with_uncommitted:
+        changed += get_git_untracked_files(repo_root, git=args.git)
+        return sorted(set(changed))
+    return changed
 
 
 def _relative_to_repo(path: Path, repo_root: Path) -> PurePath:

@@ -30,8 +30,13 @@ def get_git_changed_files_compared_to_branch(
     filter: Optional[str] = None,
     git: str = DEFAULT_GIT,
     diff_filter: str = 'ACMR',
+    head: Optional[str] = None,
 ) -> Iterable[Path]:
-    """filter can be like --relative=source/ or '*.php' etc."""
+    """filter can be like --relative=source/ or '*.php' etc.
+
+    With ``head`` (e.g. ``'HEAD'``) only committed changes are compared. Without it the merge base
+    is compared with the working tree, which includes uncommitted changes to tracked files.
+    """
     current_branch = get_current_branch(folder_path, git=git)
     if not current_branch:
         return []
@@ -45,6 +50,7 @@ def get_git_changed_files_compared_to_branch(
         git,
         'diff',
         merge_base.process.stdout.rstrip(),
+        *([head] if head else []),
         '--name-only',
         f'--diff-filter={diff_filter}',
     )
@@ -104,10 +110,13 @@ def get_git_unstaged_files(
             folder_path, _git_cmd(git, 'diff', '--name-only', '-z', f'--diff-filter={diff_filter}')
         )
     )
-    untracked = _null_separated_paths(
+    return tracked + get_git_untracked_files(folder_path, git=git)
+
+
+def get_git_untracked_files(folder_path: Path, git: str = DEFAULT_GIT) -> List[Path]:
+    return _null_separated_paths(
         exec_command(folder_path, _git_cmd(git, 'ls-files', '--others', '--exclude-standard', '-z'))
     )
-    return tracked + untracked
 
 
 def get_default_branch(folder_path: Path, git: str = DEFAULT_GIT) -> Optional[str]:

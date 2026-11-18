@@ -3,9 +3,43 @@
 All notable changes to CodeOwnerInsights are documented here.
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+
+**`--with-uncommitted` CLI flag.** Adds uncommitted changes, untracked files
+included, to the branch changes, for the files a pull request would change once
+everything is committed.
+
+**`head` parameter** on `get_git_changed_files_compared_to_branch()`. Pass `'HEAD'`
+to compare committed changes only; the default still compares the merge base with
+the working tree.
+
+**`get_git_untracked_files()`** git helper.
+
+### Changed
+
+**The CLI's branch changes are commits only.** It compared the merge base with the
+working tree, so uncommitted edits to tracked files were listed as branch changes
+while untracked files were not. It now compares with `HEAD`, which is what a pull
+request contains. `--with-uncommitted` gives the working-tree view, untracked files
+included. The Sublime Text plugin's diff is unchanged.
+
+### Fixed
+
 ## [0.4.0]
 
 ### Added
+
+**`--with-uncommitted` CLI flag.** Adds uncommitted changes, untracked files
+included, to the branch changes, for the files a pull request would change once
+everything is committed.
+
+**`head` parameter** on `get_git_changed_files_compared_to_branch()`. Pass `'HEAD'`
+to compare committed changes only; the default still compares the merge base with
+the working tree.
+
+**`get_git_untracked_files()`** git helper.
 
 **`--staged` and `--unstaged` CLI flags.** Resolve the owners of the index changes
 or the working-tree changes (untracked files included), or of both together,
